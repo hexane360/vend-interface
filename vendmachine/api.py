@@ -1,78 +1,119 @@
 #!/usr/bin/env python3
 
-from flask import Blueprint, request, abort
+from flask import Blueprint, request, jsonify, abort, make_response
 import json
 
-from vendmachine.server import app
+from vendmachine.server import server, app, socketio, Status
 from vendmachine.settings import settings
+from vendmachine.items import Items
+items = Items()
 
 api = Blueprint("api", __name__)
 
-items = {99: {
-				 "price": 2.0,
-				 "name": "Item A",
-				 "qty": 5
-	         },
-         98: {
-				 "price": 3.0,
-				 "name": "Item B",
-				 "qty": 2
-	         }
-         }
-
-#get method
-@api.route("/price", methods=['GET'])
-def check_price():
-	if not request.args or 'address' not in request.args:
-		abort(400)
-	try:
-		address = int(request.args['address'])
-	except ValueError:
-		abort(400)
-	#print(request.form['data'])
-	if items[address] is None:
-		abort(400) #bad request
-	return "${.2}".format(items[address]["price"])
-
 @api.route("/status", methods=['GET'])
 def status():
-	return status
+	return jsonify(server.status_data()), 200
 
-@api.route("/vend/<channel>", methods=['POST'])
-def vend(channel):
+@api.route("/credit", methods=['POST'])
+def credit():
+	if not request.values or "amount" not in request.values:
+		error("Missing 'amount' argument")
 	try:
-		channel = int(channel)
+		amount = float(request.values["amount"])
 	except ValueError:
-		abort(400) #bad request
-	if userDollars < item["price"]:
-		abort(400)
-	#vend item
-	userDollars -= item["price"]
+		error("Invalid 'amount' argument")
+	server.set_credit(amount)
+	return status()
 
-@api.route("/item", methods=['POST'])
-def post_item():
-	if not request.args or 'address' not in request.args or 'price' not in request.args:
-		abort(400)
-	try:
-		address = int(request.args['address'])
-		price = float(request.args['price'])
-	except ValueError:
-		abort(400)
-	qty = request.args['qty'] or 0
-	name = request.args['name'] or ""
-	items['address'] = {
-		"price": price,
-		"name": name,
-		"qty": qty
-	}
-	return 200
+@api.route("/items", methods=['GET'])
+def get_items():
+	return jsonify({"items": items.items()})
 
-@api.route("/item", methods=['GET'])
-def get_item():
-	if not request.args or 'address' not in request.args:
-		abort(400)
+@api.route("/item/<int:addr>", methods=['PUT'])
+def update_item(addr):
+	if not request.values:
+		error("Missing arguments")
+	price = default_arg(request, 'price', float)
+	name = default_arg(request, 'name', str)
+	qty = default_arg(request, 'qty', int)
 	try:
-		address = int(request.args['address'])
+		items.update(addr, price, name, qty)
 	except ValueError:
-		abort(400)
-	return json.dumps(items[address])
+		error("Invalid item properties")
+	return jsonify({"item": items[addr]}), 200
+
+@api.route("/item/<int:addr>", methods=['GET'])
+def get_item(addr):
+	if addr not in items:
+		error("Item does not exist", 404)
+	return jsonify({"item": items[addr]}), 200
+
+@api.route("/price", methods=['GET'])
+def price():
+	print("price: {}".format(request.values['addr']))
+	addr = try_arg(request, 'addr', int)
+	if addr not in items:
+		error("Item does not exist")
+	price = items[addr]['price']
+	return jsonify({"price": price, "text": "${:,.2f}".format(price)})
+	
+
+@api.route("/item/<int:addr>/price", methods=['GET'])
+def price_fixed(addr):
+	if addr not in items:
+		error("Item does not exist", 404)
+	price = items[addr]['price']
+	return jsonify({"price": price, "text": "${:,.2f}".format(price)})
+
+@api.route("/vend", methods=['POST'])
+def vend():
+	#print("vend(), request.values={}".format(request.values))
+	addr = try_arg(request, 'addr', int)
+	if addr not in items:
+		error("Item does not exist")
+	try:
+		server.vend(items[addr])
+	except ValueError:
+		error("Insufficient credit", 402)
+	return status()
+
+@api.route("/item/<int:addr>/vend", methods=['POST'])
+def vend_fixed(addr):
+	if addr not in items:
+		error("Item does not exist", 404)
+	try:
+		server.vend(items[addr])
+	except ValueError:
+		error("Insufficient credit", 402)
+	return status()
+
+def default_arg(request, arg, typ=int, default=None):
+	if arg not in request.values:
+		return default
+	try:
+		return typ(request.values[arg])
+	except ValueError:
+		return default
+
+def try_arg(request, arg, typ=int):
+	if not request.values or arg not in request.values:
+		error("Missing '{}' argument".format(arg))
+	try:
+		return typ(request.values[arg])
+	except ValueError:
+		error("Invalid '{}' argument".format(arg))
+
+def error(msg="Invalid query", code=400):
+	json = {'error': msg}
+	#return jsonify(json), code
+	abort(make_response(jsonify(json), code))
+
+@api.errorhandler(404)
+def not_found(error):
+	json = {'error': 'Not found'}
+	return make_response(jsonify(json), 404)
+
+@api.errorhandler(403)
+def not_found(error):
+	json = {'error': 'Forbidden'}
+	return make_response(jsonify(json), 404)

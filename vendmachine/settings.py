@@ -7,6 +7,7 @@ settings = None
 
 default_settings = {
 	"server": {
+		"host": "127.0.0.1",
 		"port": 5000
 	},
 	"appearance": {
@@ -24,18 +25,19 @@ class Settings():
 		else:
 			self._configfile = os.path.join("", "config.yaml")
 		
+		self._settings = default_settings #not a deep copy - be careful
 		if os.path.exists(self._configfile) and os.path.isfile(self._configfile):
 			print("Loading config")
 			with open(self._configfile, "r") as f:
 				try:
-					self._settings = yaml.safe_load(f)
+					new_settings = yaml.safe_load(f)
 					#self._mtime = self.last_modified
 				except yaml.YAMLError as e:
 					print("Invalid YAML File: {}".format(self._configfile))
-					print("details: {}".format(e.message))
+					print("details: {}".format(e))
+				self._settings.update(new_settings)
 		else:
 			print("Writing default setings")
-			self._settings = default_settings
 			with open(self._configfile, "w") as f:
 				yaml.safe_dump(default_settings, f)
 	def get(self, keys):
@@ -69,3 +71,4 @@ class Settings():
 def init(configFile=None):
 	global settings
 	settings = Settings(configFile)
+	return settings

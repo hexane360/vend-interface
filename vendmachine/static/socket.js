@@ -1,25 +1,31 @@
 var socket = io.connect('http://' + document.domain + ':' + location.port);
-
-socket.on( 'connect', function() {
-  socket.emit( 'my event', {
-    data: 'User Connected'
-  })
-  var form = $( 'form' ).on( 'submit', function( e ) {
-    e.preventDefault()
-    let user_name = $( 'input.username' ).val()
-    let user_input = $( 'input.message' ).val()
-    socket.emit( 'my event', {
-      user_name : user_name,
-      message : user_input
-    })
-    $( 'input.message' ).val( '' ).focus()
-  })
+var status = null;
+socket.on('connect', function() {
+  $('.status').html("Connected")
+  socket.emit('status', {})
+})
+socket.on('connect_error', function() {
+  $('.status').html("Error connecting");
+})
+socket.on('connect_timeout', function() {
+  $('.status').html("Connection timeout");
 })
 
-socket.on( 'my response', function( msg ) {
-  console.log( msg )
-  if( typeof msg.user_name !== 'undefined' ) {
-    $( 'h3' ).remove()
-    $( 'div.message_holder' ).append('<div><b style="color:             #000">'+msg.user_name+'</b>'+msg.message+'</div>' )
+socket.on('disconnect', function() {
+  $('.status').html("Disconnected");
+  status = null;
+})
+
+socket.on('status', function(data) {
+  if (data.status === undefined) {
+    alert("Bad status response")
+    return;
   }
+  status = data.status.code
+  $('.status').html(data.status.text);
+  $('.credit').html(data.status.creditText);
+})
+
+socket.on('heartbeat', function(msg) {
+  console.log("Heartbeat: " + msg);
 })
