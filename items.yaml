@@ -2,11 +2,14 @@
   "price": 2.0
   "name": "Item A"
   "qty": 5
+  "motor": 0
 98:
   "price": 3.0
   "name": "Item B"
   "qty": 2
+  "motor": 1
 42:
   "price": 10000.0
   "name": "Unobtanium"
   "qty": 9
+  "motor": 5

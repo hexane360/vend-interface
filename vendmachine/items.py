@@ -24,23 +24,26 @@ class Items():
 			with open(itemFile, "w") as f:
 				yaml.safe_dump(self._items, f)
 
-	def add(self, channel, price, name=None, qty=0):
+	def add(self, channel, price, motor, name=None, qty=0):
 		if channel in self._items:
 			raise ValueError("Item already exists")
 		self._items[channel] = {
 			"price": float(price),
 			"name": str(name),
-			"qty": int(qty)
+			"qty": int(qty),
+			"motor": int(motor),
 		}
 		if self.autosave:
 			self.save()
 
-	def update(self, channel, price=None, name=None, qty=None):
+	def update(self, channel, price=None, motor=None, name=None, qty=None):
 		if channel not in self._items:
-			raise ValueError("Item does not exist")		
+			raise ValueError("Item does not exist")
 		item = self._items[channel]
 		if price != None:
 			item["price"] = price
+		if motor != None:
+			item["motor"] = motor
 		if name != None:
 			item["name"] = name
 		if qty != None:

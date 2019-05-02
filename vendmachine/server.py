@@ -5,8 +5,16 @@ from enum import IntEnum, unique
 from flask import Flask
 from flask_socketio import SocketIO
 
+from vendmachine.machine import *
+
 app = Flask("vendmachine") #instance_relative_config=True
 socketio = SocketIO(app)
+
+def oosEvent(gpio, value):
+	if not value: #out of service
+		print("Bill acceptor out of service")
+	else:
+		print("Bill acceptor back in service")
 
 @unique
 class Status(IntEnum):
@@ -28,7 +36,7 @@ class Server():
 		self._status = Status.Ready
 		self._credit = 0.0
 
-	def setup(self): #not used yet
+	def setup(self):
 		from vendmachine.settings import settings as s
 		secret_key = s.get(["server", "secretKey"])
 		if not secret_key:
@@ -69,9 +77,17 @@ class Server():
 			raise ValueError("Insufficient Credit")
 		self._credit -= item["price"]
 		self.status_change(Status.Vending)
+		try:
+			self.machine.vend(item["motor"])
+		except Exception as e:
+			print("Vending error: ".format(e))
+			self._credit += item["price"]
+		self.status_change(Status.Ready)
 
 	def run(self):
-		#init settings
+		self.machine = Machine()
+		self.machine.oosEvent(oosEvent) #register interrupt
+		self.machine.activateInterrupts()
 		global app, socketio
 		import vendmachine.routes
 		from vendmachine.api import api
