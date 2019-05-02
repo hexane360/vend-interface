@@ -1,7 +1,8 @@
-import RPIO
+import RPi.GPIO as GPIO
 import time
 from enum import IntEnum
 
+GPIO.setmode(GPIO.BCM)
 #motor pins (BCM designation)
 enablePin = 18 #pwm
 resetPin = 23
@@ -9,12 +10,12 @@ stepPin = 24
 sleepPins = [25,8,7,1]
 
 #bill pins
-acceptingPin = 5 #enable pin
-pulsePin = 5
-oosPin = 5 #out of service
+acceptingPin = 27 #enable pin
+pulsePin = 17
+oosPin = 22 #out of service
 
 #ir pin
-irPin = 5
+irPin = 12
 
 vending = False
 caught = False
@@ -23,23 +24,24 @@ class Machine():
 	def __init__(self):
 		self.drivers = Drivers()
 
-		RPIO.setup(acceptingPin, RPIO.OUT, initial=RPIO.HIGH)
-		RPIO.setup(pulsePin, RPIO.IN)
-		RPIO.setup(oosPin, RPIO.IN)
+		GPIO.setup(acceptingPin, GPIO.OUT, initial=GPIO.HIGH)
+		GPIO.setup(pulsePin, GPIO.IN)
+		GPIO.setup(oosPin, GPIO.IN)
 		
-		RPIO.setup(irPin, RPIO.IN)
-		RPIO.add_interrupt_callback(irPin, _vend_callback, edge='falling')
+		GPIO.setup(irPin, GPIO.IN)
+		#GPIO.add_interrupt_callback(irPin, _vend_callback, edge='rising')
+
 	def pulseEvent(callback):
-		RPIO.add_interrupt_callback(pulsePin, callback, edge='falling', threaded_callback=True, debounce_timeout_ms=None)
-	def oosEvent(callback):
-		RPIO.add_interrupt_callback(pulsePin, callback, edge='both', threaded_callback=True, debounce_timeout_ms=None)
-	def activateInterrupts():
-		RPIO.wait_for_interrupts(threaded=True)
+		GPIO.add_event_detect(pulsePin, GPIO.FALLING, callback=callback)
+	def oosRisingEvent(callback):
+		GPIO.add_event_detect(oosPin, GPIO.FALLING, callback=callback)
+	def oosFallingEvent(callback):
+	    GPIO.add_event_detect(oosPin, GPIO.RISING, callback=callback)
 
 	def vend(motor):
 		if motor < 0 or motor > 2*len(sleepPins)-1:
 			raise ValueError("Invalid motor # {}".format(motor))
-		if RPIO.input(irPin):
+		if GPIO.input(irPin):
 			raise ValueError("IR beam broken")
 		self.drivers.wake_on(motor >> 1) #which driver to run
 		if motor%2:                      #left or right motor on driver
@@ -47,22 +49,12 @@ class Machine():
 		else:
 			self.drivers.dir(Dir.CW, Dir.Stop)
 		self.drivers.run(255)
-		vending = True
-		caught = False
-		RPIO.wait_for_interrupts(epoll_timeout=30)
-		vending = False
-		RPIO.wait_for_interrupts(threaded=True) #immediately reenable non-blocking
+		result = GPIO.wait_for_edge(irPin, GPIO_RISING, timeout=30000)
 		self.drivers.stop()
-		if not self._caught:
+		if result is None:
 			raise ValueError("Product not detected")
 	def cleanup():
-		RPIO.cleanup()
-
-def _vend_callback(gpio, val):
-	if not vending:
-		return
-	RPIO.stop_waiting_for_interrupts()
-	caught = True
+		GPIO.cleanup()
 
 class Dir(IntEnum):
 	CCW = -1
@@ -88,24 +80,23 @@ class Drivers():
 		self._dirB = Dir.CW
 		self._step = 1
 		self._slept = [True]*len(sleepPins)
-		self._pwm = RPIO.PWM.Servo()
-		self._pwm.set_servo(18, 20000) #disable PWM
-		RPIO.setup(resetPin, RPIO.OUT, initial=RPIO.LOW)
-		RPIO.setup(stepPin, RPIO.OUT, initial=RPIO.LOW)
-		for p in sleepPins:
-			RPIO.setup(p, RPIO.OUT, initial=RPIO.LOW) #high to wake
-		RPIO.output(stepPin, True)
+		self._pwm = GPIO.PWM(18, 100)
+		self._pwm.start(100.0)
+		GPIO.setup(resetPin, GPIO.OUT, initial=GPIO.LOW)
+		GPIO.setup(stepPin, GPIO.OUT, initial=GPIO.LOW)
+		GPIO.setup(sleepPins, GPIO.OUT, initial=GPIO.LOW) #high to wake
+		GPIO.output(stepPin, True)
 	def reset(self):
-		RPIO.output(resetPin, False)
+		GPIO.output(resetPin, False)
 		time.sleep(50.0/1000000.0) #50 us
-		RPIO.output(resetPin, True)
+		GPIO.output(resetPin, True)
 		self._dirA = Dir.CW
 		self._dirB = Dir.CW
 		self._step = 1
 	def restep(self):
-		RPIO.output(resetPin, False)
+		GPIO.output(resetPin, False)
 		time.sleep(50.0/1000000.0) #50 us
-		RPIO.output(resetPin, True)
+		GPIO.output(resetPin, True)
 		step = self._step
 		self._step = 1
 		self.step_to(step)
@@ -122,7 +113,7 @@ class Drivers():
 		if self._sleep[driver] == sleep:
 			return
 		self._sleep[driver] = sleep
-		RPIO.output(sleepPins[driver], not sleep)
+		GPIO.output(sleepPins[driver], not sleep)
 		time.sleep(1.7/1000.0) #1.7 ms
 		self.restep()
 	def sleep_arr(sleep_arr):
@@ -172,14 +163,14 @@ class Drivers():
 		self._stepN(end + (8 if end < self._step else 0) - self._step)
 	def _stepN(num):
 		for i in range(num):
-			RPIO.output(stepPin, False)
+			GPIO.output(stepPin, False)
 			time.sleep(20.0/1000.0) #20 ms
-			RPIO.output(stepPin, True)
+			GPIO.output(stepPin, True)
 			time.sleep(20.0/1000.0) #20 ms
 		self._step = (self._step + num)%8
 	def _setSpeed(speed):
-		if speed > 255:
-			speed = 255
-		if speed < 0:
-			speed = 0
-		self._pwm.set_servo(18, 20000 - speed*20000/255)
+		if speed > 100.0:
+			speed = 100.0
+		if speed < 0.0:
+			speed = 0.0
+		self._pwm.ChangeDutyCycle(100.0 - speed)
