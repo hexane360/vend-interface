@@ -10,10 +10,14 @@ from vendmachine.machine import *
 app = Flask("vendmachine") #instance_relative_config=True
 socketio = SocketIO(app)
 
-def oosRisingEvent(gpio, value):
-    print("Bill acceptor out of service")
-def oosFallingEvent(gpio, value):
-    print("Bill acceptor back in service")
+def oosEvent(value):
+	if value:
+		print("Bill acceptor out of service")
+	else:
+		print("Bill acceptor back in service")
+def pulseEvent(channel):
+	print("Pulse on channel {}".format(channel))
+	server.add_credit(1.0)
 
 @unique
 class Status(IntEnum):
@@ -63,9 +67,11 @@ class Server():
 
 	def credit(self):
 		return self._credit
-
 	def set_credit(self, credit):
 		self._credit = credit
+		self.status_update()
+	def add_credit(self, credit):
+		self._credit += credit
 		self.status_update()
 
 	def status_update(self):
@@ -85,8 +91,8 @@ class Server():
 
 	def run(self):
 		self.machine = Machine()
-		self.machine.oosRisingEvent(oosRisingEvent) #register interrupts
-        self.machine.oosFallingEvent(oosFallingEvent)
+		self.machine.oosEvent(oosEvent) #register interrupts
+		self.machine.pulseEvent(pulseEvent)
 		global app, socketio
 		import vendmachine.routes
 		from vendmachine.api import api
