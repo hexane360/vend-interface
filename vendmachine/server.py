@@ -17,7 +17,7 @@ def oosEvent(value):
 		print("Bill acceptor back in service")
 def pulseEvent(channel):
 	print("Pulse on channel {}".format(channel))
-	server.add_credit(1.0)
+	server.add_credit(0.25)
 
 @unique
 class Status(IntEnum):

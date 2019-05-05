@@ -35,7 +35,7 @@ class Machine():
 		GPIO.add_event_detect(irPin, GPIO.BOTH, callback=irEvent)
 
 	def pulseEvent(self, callback):
-		GPIO.add_event_detect(pulsePin, GPIO.FALLING, callback=callback, bouncetime=20) #20 ms
+		GPIO.add_event_detect(pulsePin, GPIO.FALLING, callback=callback, bouncetime=10) #20 ms
 	def oosEvent(self, callback):
 		def shim(channel):
 			callback(GPIO.input(channel) == True)

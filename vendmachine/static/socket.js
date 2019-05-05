@@ -29,3 +29,6 @@ socket.on('status', function(data) {
 socket.on('heartbeat', function(msg) {
   console.log("Heartbeat: " + msg);
 })
+socket.on('refresh', function(msg) {
+  window.location.reload(true)
+})
