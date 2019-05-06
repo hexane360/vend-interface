@@ -35,6 +35,7 @@ class Settings():
 				except yaml.YAMLError as e:
 					print("Invalid YAML File: {}".format(self._configfile))
 					print("details: {}".format(e))
+					raise
 				self._settings.update(new_settings)
 		else:
 			print("Writing default setings")

@@ -3,10 +3,9 @@
 from flask import Blueprint, request, jsonify, abort, make_response
 import json
 
-from vendmachine.server import server, app, socketio, Status
+from vendmachine.server import server, Status
 from vendmachine.settings import settings
-from vendmachine.items import Items
-items = Items()
+from vendmachine.auth import user_access
 
 api = Blueprint("api", __name__)
 
@@ -27,7 +26,7 @@ def credit():
 
 @api.route("/items", methods=['GET'])
 def get_items():
-	return jsonify({"items": items.items()})
+	return jsonify({"items": server.items.items()})
 
 @api.route("/item/<int:addr>", methods=['PUT'])
 def update_item(addr):
@@ -37,52 +36,52 @@ def update_item(addr):
 	name = default_arg(request, 'name', str)
 	qty = default_arg(request, 'qty', int)
 	try:
-		items.update(addr, price, name, qty)
+		server.items.update(addr, price, name, qty)
 	except ValueError:
 		error("Invalid item properties")
-	return jsonify({"item": items[addr]}), 200
+	return jsonify({"item": server.items[addr]}), 200
 
 @api.route("/item/<int:addr>", methods=['GET'])
 def get_item(addr):
-	if addr not in items:
+	if addr not in server.items:
 		error("Item does not exist", 404)
-	return jsonify({"item": items[addr]}), 200
+	return jsonify({"item": server.items[addr]}), 200
 
 @api.route("/price", methods=['GET'])
 def price():
 	print("price: {}".format(request.values['addr']))
 	addr = try_arg(request, 'addr', int)
-	if addr not in items:
+	if addr not in server.items:
 		error("Item does not exist")
-	price = items[addr]['price']
+	price = server.items[addr]['price']
 	return jsonify({"price": price, "text": "${:,.2f}".format(price)})
 	
 
 @api.route("/item/<int:addr>/price", methods=['GET'])
 def price_fixed(addr):
-	if addr not in items:
+	if addr not in server.items:
 		error("Item does not exist", 404)
-	price = items[addr]['price']
+	price = server.items[addr]['price']
 	return jsonify({"price": price, "text": "${:,.2f}".format(price)})
 
 @api.route("/vend", methods=['POST'])
 def vend():
 	#print("vend(), request.values={}".format(request.values))
 	addr = try_arg(request, 'addr', int)
-	if addr not in items:
+	if addr not in server.items:
 		error("Item does not exist")
 	try:
-		server.vend(items[addr])
+		server.vend(server.items[addr])
 	except ValueError:
 		error("Insufficient credit", 402)
 	return status()
 
 @api.route("/item/<int:addr>/vend", methods=['POST'])
 def vend_fixed(addr):
-	if addr not in items:
+	if addr not in server.items:
 		error("Item does not exist", 404)
 	try:
-		server.vend(items[addr])
+		server.vend(server.items[addr])
 	except ValueError:
 		error("Insufficient credit", 402)
 	return status()
@@ -116,4 +115,4 @@ def not_found(error):
 @api.errorhandler(403)
 def not_found(error):
 	json = {'error': 'Forbidden'}
-	return make_response(jsonify(json), 404)
+	return make_response(jsonify(json), 403)

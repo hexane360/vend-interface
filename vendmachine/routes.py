@@ -2,11 +2,15 @@
 
 from flask import render_template, abort
 
-from vendmachine.server import app, socketio, server
+from vendmachine.server import server
 from vendmachine.settings import settings
+
+socketio = server.socketio
+app = server.app
 
 @socketio.on('connect')
 def connect():
+	#can return False to reject connection
 	print("Websocket connected")
 
 def messageReceived(methods=['GET', 'POST']):

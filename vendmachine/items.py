@@ -3,7 +3,7 @@ import yaml
 
 class Items():
 	def __init__(self, itemFile="items.yaml"):
-		self.autosave = True	
+		self.autosave = True
 		self._itemFile = itemFile
 		self.load(itemFile)
 
@@ -18,6 +18,7 @@ class Items():
 				except yaml.YAMLError as e:
 					print("Invalid YAML File: {}".format(itemFile))
 					print("details: {}".format(e))
+					raise
 		else:
 			print("Creating item list")
 			self._items = {}
