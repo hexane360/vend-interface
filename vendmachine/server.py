@@ -106,4 +106,9 @@ class Server():
 		self.app.register_blueprint(api, url_prefix="/ext/api")
 		self.socketio.run(self.app, debug=True, host=self.host, port=self.port)
 
+	def stop(self):
+		self.machine.stop()
+		socketio.emit('shutdown')
+		#other things to do?
+
 server = Server()

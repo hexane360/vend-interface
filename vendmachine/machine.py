@@ -23,19 +23,45 @@ def irEvent(channel):
 	else:
 		print("IR: 0")
 
+#class to monitor a GPIO pin and return debounced events
+#returns events at time of *next* edge
+class Monitor():
+	def __init__(self, pin, debounce=20, **kwargs):
+		self._pin = pin
+		self.debounce = 20
+		GPIO.setup(pin, GPIO.IN, **kwargs)
+		self._t = time.monotonic()
+		self._state = GPIO.input(pin)
+		self._callbacks = []
+		GPIO.add_event_detect(pin, GPIO.BOTH, callback=self._callback)
+	def _callback(self, channel):
+		state = GPIO.input(self._pin)
+		t = time.monotonic()
+		if (state != self._state and t - self._t > self.debounce):
+			for cb in self._callbacks:
+				cb(self._state)
+		self._t = t
+		self._state = state
+	def register(self, callback):
+		self._callbacks.append(callback)
+
 class Machine():
 	def __init__(self):
 		self.drivers = Drivers()
 
 		GPIO.setup(acceptingPin, GPIO.OUT, initial=GPIO.HIGH)
-		GPIO.setup(pulsePin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 		GPIO.setup(oosPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+		self._pulse = Monitor(pulsePin, pull_up_down = GPIO.PUD_UP)
 
 		GPIO.setup(irPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 		GPIO.add_event_detect(irPin, GPIO.BOTH, callback=irEvent)
 
 	def pulseEvent(self, callback):
-		GPIO.add_event_detect(pulsePin, GPIO.FALLING, callback=callback, bouncetime=10) #20 ms
+		def shim(val):
+			if !val:
+				callback()
+		self._pulse.register(shim)
+
 	def oosEvent(self, callback):
 		def shim(channel):
 			callback(GPIO.input(channel) == True)
@@ -55,7 +81,9 @@ class Machine():
 		self.drivers.stop()
 		if result is None:
 			raise ValueError("Product not detected")
-	def cleanup(self):
+	def stop(self):
+		self.drivers.stop()
+		GPIO.output(acceptingPin, GPIO.LOW) #disable acceptor
 		GPIO.cleanup()
 
 class Dir(IntEnum):
