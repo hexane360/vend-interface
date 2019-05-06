@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/vend/vend-interface/venv/bin/python3
 
 import os
 import sys

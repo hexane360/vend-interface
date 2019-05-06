@@ -5,4 +5,6 @@ Jinja2==2.10.1
 MarkupSafe==1.1.1
 #vendmachine==0.1
 Werkzeug==0.15.2
-RPIO==0.10.0
+Flask-SocketIO==3.3.2
+gevent==1.4.0
+gevent-websocket==0.10.1

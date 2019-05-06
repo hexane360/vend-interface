@@ -15,6 +15,9 @@ def oosEvent(gpio, value):
 		print("Bill acceptor out of service")
 	else:
 		print("Bill acceptor back in service")
+def pulseEvent(channel):
+	print("Pulse on channel {}".format(channel))
+	server.add_credit(0.25)
 
 @unique
 class Status(IntEnum):
@@ -51,14 +54,6 @@ class Server():
 			s.set(["server", "secretKey"], secret_key)
 			s.save()
 
-		self.app = Flask("vendmachine") #instance_relative_config=True
-		self.app.secret_key = secret_key
-		self.host = s.get(["server", "host"])
-		self.port = s.get(["server", "port"])
-		self.socketio = SocketIO(self.app)
-		self.logins = LoginManager()
-		self.logins.init_app(self.app)
-
 	def status_data(self):
 		return {"status": {
 			"code": self._status.value,
@@ -80,9 +75,12 @@ class Server():
 	def set_credit(self, credit):
 		self._credit = credit
 		self.status_update()
+	def add_credit(self, credit):
+		self._credit += credit
+		self.status_update()
 
 	def status_update(self):
-		self.socketio.emit('status', self.status_data())
+		socketio.emit('status', self.status_data())
 
 	def vend(self, item):
 		if self._credit < item["price"]:
@@ -90,17 +88,16 @@ class Server():
 		self._credit -= item["price"]
 		self.status_change(Status.Vending)
 		try:
-			#self.machine.vend(item["motor"])
-			print("vend")
+			self.machine.vend(item["motor"])
 		except Exception as e:
 			print("Vending error: ".format(e))
 			self._credit += item["price"]
 		self.status_change(Status.Ready)
 
 	def run(self):
-		#self.machine = Machine()
-		#self.machine.oosEvent(oosEvent) #register interrupt
-		#self.machine.activateInterrupts()
+		self.machine = Machine()
+		self.machine.oosEvent(oosEvent) #register interrupts
+		self.machine.pulseEvent(pulseEvent)
 		import vendmachine.routes
 		from vendmachine.api import api
 		from vendmachine.ext import ext

@@ -23,7 +23,7 @@ $(document).ready(function() {
     });
   });
   $('#vend-addr').on('keyup keypress blur change', function(e) {
-    console.log("changed")
+    //console.log("changed")
     if ($(this).val().length == 2) {
       $.ajax({
         url: "{{ url_for('api.price') }}",
@@ -44,17 +44,23 @@ $(document).ready(function() {
         }
       });
     } else {
+      if ($(this).val().length > 2) {
+        $(this).val("");
+      }
       $(".price").html("");
     }
   });
+});
+$(window).load(function() {
+  $('#vend-addr').select();
 });
 </script>{% endblock %}
 {% block body %}
 <div class="status">Disconnected</div>
 Credit: <span class="credit">$0.00</span>
 <form id="vend-request">
-  <input id="vend-addr" type="text" name="addr" maxlength="2" placeholder="Address" required/>
-  <button class="btn" type="submit">VEND</button>
+  <input id="vend-addr" type="text" name="addr" maxlength="3" placeholder="00" required/>
+  <br> <button class="btn" type="submit">VEND</button>
 </form>
 Item price: <span class="price"></span>
 {% endblock %}

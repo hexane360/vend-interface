@@ -1,7 +1,8 @@
-import RPIO
+import RPi.GPIO as GPIO
 import time
 from enum import IntEnum
 
+GPIO.setmode(GPIO.BCM)
 #motor pins (BCM designation)
 enablePin = 18 #pwm
 resetPin = 23
@@ -9,37 +10,40 @@ stepPin = 24
 sleepPins = [25,8,7,1]
 
 #bill pins
-acceptingPin = 5 #enable pin
-pulsePin = 5
-oosPin = 5 #out of service
+acceptingPin = 27 #enable pin
+pulsePin = 17
+oosPin = 22 #out of service
 
 #ir pin
-irPin = 5
+irPin = 12
 
-vending = False
-caught = False
+def irEvent(channel):
+	if GPIO.input(channel):
+		print("IR: 1")
+	else:
+		print("IR: 0")
 
 class Machine():
 	def __init__(self):
 		self.drivers = Drivers()
 
-		RPIO.setup(acceptingPin, RPIO.OUT, initial=RPIO.HIGH)
-		RPIO.setup(pulsePin, RPIO.IN)
-		RPIO.setup(oosPin, RPIO.IN)
-		
-		RPIO.setup(irPin, RPIO.IN)
-		RPIO.add_interrupt_callback(irPin, _vend_callback, edge='falling')
-	def pulseEvent(callback):
-		RPIO.add_interrupt_callback(pulsePin, callback, edge='falling', threaded_callback=True, debounce_timeout_ms=None)
-	def oosEvent(callback):
-		RPIO.add_interrupt_callback(pulsePin, callback, edge='both', threaded_callback=True, debounce_timeout_ms=None)
-	def activateInterrupts():
-		RPIO.wait_for_interrupts(threaded=True)
+		GPIO.setup(acceptingPin, GPIO.OUT, initial=GPIO.HIGH)
+		GPIO.setup(pulsePin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+		GPIO.setup(oosPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-	def vend(motor):
+		GPIO.setup(irPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+		GPIO.add_event_detect(irPin, GPIO.BOTH, callback=irEvent)
+
+	def pulseEvent(self, callback):
+		GPIO.add_event_detect(pulsePin, GPIO.FALLING, callback=callback, bouncetime=10) #20 ms
+	def oosEvent(self, callback):
+		def shim(channel):
+			callback(GPIO.input(channel) == True)
+		GPIO.add_event_detect(oosPin, GPIO.BOTH, callback=shim, bouncetime=50) #50 ms
+	def vend(self, motor):
 		if motor < 0 or motor > 2*len(sleepPins)-1:
 			raise ValueError("Invalid motor # {}".format(motor))
-		if RPIO.input(irPin):
+		if GPIO.input(irPin):
 			raise ValueError("IR beam broken")
 		self.drivers.wake_on(motor >> 1) #which driver to run
 		if motor%2:                      #left or right motor on driver
@@ -47,22 +51,12 @@ class Machine():
 		else:
 			self.drivers.dir(Dir.CW, Dir.Stop)
 		self.drivers.run(255)
-		vending = True
-		caught = False
-		RPIO.wait_for_interrupts(epoll_timeout=30)
-		vending = False
-		RPIO.wait_for_interrupts(threaded=True) #immediately reenable non-blocking
+		result = GPIO.wait_for_edge(irPin, GPIO_RISING, timeout=30000, bouncetime=10)
 		self.drivers.stop()
-		if not self._caught:
+		if result is None:
 			raise ValueError("Product not detected")
-	def cleanup():
-		RPIO.cleanup()
-
-def _vend_callback(gpio, val):
-	if not vending:
-		return
-	RPIO.stop_waiting_for_interrupts()
-	caught = True
+	def cleanup(self):
+		GPIO.cleanup()
 
 class Dir(IntEnum):
 	CCW = -1
@@ -88,44 +82,44 @@ class Drivers():
 		self._dirB = Dir.CW
 		self._step = 1
 		self._slept = [True]*len(sleepPins)
-		self._pwm = RPIO.PWM.Servo()
-		self._pwm.set_servo(18, 20000) #disable PWM
-		RPIO.setup(resetPin, RPIO.OUT, initial=RPIO.LOW)
-		RPIO.setup(stepPin, RPIO.OUT, initial=RPIO.LOW)
-		for p in sleepPins:
-			RPIO.setup(p, RPIO.OUT, initial=RPIO.LOW) #high to wake
-		RPIO.output(stepPin, True)
+		GPIO.setup(enablePin, GPIO.OUT)
+		self._pwm = GPIO.PWM(enablePin, 100)
+		self._pwm.start(100.0)
+		GPIO.setup(resetPin, GPIO.OUT, initial=GPIO.LOW)
+		GPIO.setup(stepPin, GPIO.OUT, initial=GPIO.LOW)
+		GPIO.setup(sleepPins, GPIO.OUT, initial=GPIO.LOW) #high to wake
+		GPIO.output(stepPin, True)
 	def reset(self):
-		RPIO.output(resetPin, False)
+		GPIO.output(resetPin, False)
 		time.sleep(50.0/1000000.0) #50 us
-		RPIO.output(resetPin, True)
+		GPIO.output(resetPin, True)
 		self._dirA = Dir.CW
 		self._dirB = Dir.CW
 		self._step = 1
 	def restep(self):
-		RPIO.output(resetPin, False)
+		GPIO.output(resetPin, False)
 		time.sleep(50.0/1000000.0) #50 us
-		RPIO.output(resetPin, True)
+		GPIO.output(resetPin, True)
 		step = self._step
 		self._step = 1
 		self.step_to(step)
-	def run(speed):
+	def run(self, speed):
 		self._speed = speed
 		if self._dirA != Dir.Stop or self._dirB != Dir.Stop:
 			self._setSpeed(speed)
-	def stop():
+	def stop(self):
 		self.run(0)
 
-	def sleep(driver, sleep=True):
+	def sleep(self, driver, sleep=True):
 		if driver < 0 or driver >= len(sleepPins):
 			raise ValueError("Driver out of range")
 		if self._sleep[driver] == sleep:
 			return
 		self._sleep[driver] = sleep
-		RPIO.output(sleepPins[driver], not sleep)
+		GPIO.output(sleepPins[driver], not sleep)
 		time.sleep(1.7/1000.0) #1.7 ms
 		self.restep()
-	def sleep_arr(sleep_arr):
+	def sleep_arr(self, sleep_arr):
 		changed = False
 		for i, old, new in zip(self._sleep, sleep_arr):
 			if old != new:
@@ -134,7 +128,7 @@ class Drivers():
 		if changed:
 			time.sleep(1.7/1000.0) #1.7 ms
 			self.restep()
-	def wake_one(driver):
+	def wake_one(self, driver):
 		changed = False
 		for i, slept in enumerate(self._sleep):
 			if i == driver:
@@ -148,12 +142,12 @@ class Drivers():
 		if changed:
 			time.sleep(1.7/1000.0) #1.7 ms
 			self.restep()
-		
-	def dirA(d):
+
+	def dirA(self, d):
 		self.dir(d, self._dirB)
-	def dirB(d):
+	def dirB(self, d):
 		self.dir(self._dirA, d)
-	def dir(dirA, dirB):
+	def dir(self, dirA, dirB):
 		setSpeed = not self._dirA and not self._dirB and (dirA or dirB)
 		self._dirA = dirA
 		self._dirB = dirB
@@ -168,18 +162,18 @@ class Drivers():
 		if setSpeed:
 			self._setSpeed(self._speed)
 
-	def _stepTo(end):
+	def _stepTo(self, end):
 		self._stepN(end + (8 if end < self._step else 0) - self._step)
-	def _stepN(num):
+	def _stepN(self, num):
 		for i in range(num):
-			RPIO.output(stepPin, False)
+			GPIO.output(stepPin, False)
 			time.sleep(20.0/1000.0) #20 ms
-			RPIO.output(stepPin, True)
+			GPIO.output(stepPin, True)
 			time.sleep(20.0/1000.0) #20 ms
 		self._step = (self._step + num)%8
-	def _setSpeed(speed):
-		if speed > 255:
-			speed = 255
-		if speed < 0:
-			speed = 0
-		self._pwm.set_servo(18, 20000 - speed*20000/255)
+	def _setSpeed(self, speed):
+		if speed > 100.0:
+			speed = 100.0
+		if speed < 0.0:
+			speed = 0.0
+		self._pwm.ChangeDutyCycle(100.0 - speed)

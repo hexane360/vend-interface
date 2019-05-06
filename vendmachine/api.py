@@ -13,6 +13,11 @@ api = Blueprint("api", __name__)
 def status():
 	return jsonify(server.status_data()), 200
 
+@api.route("/refresh", methods=['POST'])
+def refresh():
+	socketio.emit('refresh')
+	return status()
+
 @api.route("/credit", methods=['POST'])
 def credit():
 	if not request.values or "amount" not in request.values:
