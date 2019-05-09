@@ -82,7 +82,7 @@ class Server():
 		self.status_update()
 
 	def status_update(self):
-		socketio.emit('status', self.status_data())
+		self.socketio.emit('status', self.status_data())
 
 	def vend(self, item):
 		if self._credit < item["price"]:
