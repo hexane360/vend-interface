@@ -39,5 +39,5 @@ function removeError() {
 function error(msg) {
   $('.error').html(msg);
   $('.error').removeClass("hide");
-  window.setTimeout(removeError, 2000);
+  window.setTimeout(removeError, 5000);
 }
