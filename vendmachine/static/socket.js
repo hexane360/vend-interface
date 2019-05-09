@@ -32,3 +32,12 @@ socket.on('heartbeat', function(msg) {
 socket.on('refresh', function(msg) {
   window.location.reload(true)
 })
+
+function removeError() {
+  $('.error').addClass("hide");
+}
+function error(msg) {
+  $('.error').html(msg);
+  $('.error').removeClass("hide");
+  window.setTimeout(removeError, 5000);
+}

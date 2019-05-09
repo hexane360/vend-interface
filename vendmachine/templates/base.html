@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <title>{% block title %}{% endblock %}</title>
+  <meta charset="utf-8"/>
   <!--<meta name="description" content=>-->
-  <!--<meta name="author" content="">-->
+  <meta name="author" content="Colin Gilgenbach">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.min.js"></script>
@@ -12,5 +13,6 @@
 </head>
 <body>
   {% block body %}base{% endblock %}
+  <div class="error hide">Error</div>
 </body>
 </html>
