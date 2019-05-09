@@ -19,7 +19,7 @@ def refresh():
 	return status()
 
 @api.route("/credit", methods=['POST'])
-def credit():
+def set_credit():
 	if not request.values or "amount" not in request.values:
 		error("Missing 'amount' argument")
 	try:
@@ -28,6 +28,10 @@ def credit():
 		error("Invalid 'amount' argument")
 	server.set_credit(amount)
 	return status()
+
+@api.route("/credit", methods=['GET'])
+def get_credit():
+	return jsonify({"credit": server.credit()}), 200
 
 @api.route("/items", methods=['GET'])
 def get_items():

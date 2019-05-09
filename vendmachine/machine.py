@@ -3,6 +3,7 @@ import time
 from enum import IntEnum
 
 GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
 #motor pins (BCM designation)
 enablePin = 18 #pwm
 resetPin = 23
@@ -30,19 +31,25 @@ class Monitor():
 		self._pin = pin
 		self.debounce = 20
 		GPIO.setup(pin, GPIO.IN, **kwargs)
-		self._t = time.monotonic()
+		self._t = time.monotonic_ns()
 		self._state = GPIO.input(pin)
 		self._callbacks = []
 		GPIO.add_event_detect(pin, GPIO.BOTH, callback=self._callback)
 	def _callback(self, channel):
 		state = GPIO.input(self._pin)
-		t = time.monotonic()
-		if (state != self._state and t - self._t > self.debounce):
-			for cb in self._callbacks:
-				cb(self._state)
-		self._t = t
+		if state == self._state:
+			return
 		self._state = state
+		t = time.monotonic_ns()
+		delta = t - self._t
+		self._t = t
+		print("Got pulse event: {}".format(state))
+		print("Time difference: {} ms".format(delta/1000000))
+		if (delta > self.debounce*1000000):
+			for cb in self._callbacks:
+				cb(not self._state) #return pulse that just ended
 	def register(self, callback):
+		print("Registering pulse callback")
 		self._callbacks.append(callback)
 
 class Machine():
@@ -51,40 +58,50 @@ class Machine():
 
 		GPIO.setup(acceptingPin, GPIO.OUT, initial=GPIO.HIGH)
 		GPIO.setup(oosPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+		self._oos = GPIO.input(oosPin) == True
 		self._pulse = Monitor(pulsePin, pull_up_down = GPIO.PUD_UP)
 
 		GPIO.setup(irPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-		GPIO.add_event_detect(irPin, GPIO.BOTH, callback=irEvent)
+		#GPIO.add_event_detect(irPin, GPIO.BOTH, callback=irEvent)
 
 	def pulseEvent(self, callback):
 		def shim(val):
-			if !val:
+			if not val:
 				callback()
 		self._pulse.register(shim)
 
+	def accepting(self, value):
+		GPIO.output(acceptingPin, value)
+
 	def oosEvent(self, callback):
 		def shim(channel):
-			callback(GPIO.input(channel) == True)
+			oos = GPIO.input(channel) == True
+			if self._oos != oos:
+				self._oos = oos
+				callback(oos)
 		GPIO.add_event_detect(oosPin, GPIO.BOTH, callback=shim, bouncetime=50) #50 ms
 	def vend(self, motor):
 		if motor < 0 or motor > 2*len(sleepPins)-1:
 			raise ValueError("Invalid motor # {}".format(motor))
-		if GPIO.input(irPin):
+		if not GPIO.input(irPin):
 			raise ValueError("IR beam broken")
-		self.drivers.wake_on(motor >> 1) #which driver to run
+		self.drivers.wake_one(motor >> 1) #which driver to run
 		if motor%2:                      #left or right motor on driver
 			self.drivers.dir(Dir.Stop, Dir.CW)
 		else:
 			self.drivers.dir(Dir.CW, Dir.Stop)
 		self.drivers.run(255)
-		result = GPIO.wait_for_edge(irPin, GPIO_RISING, timeout=30000, bouncetime=10)
+		result = GPIO.wait_for_edge(irPin, GPIO.FALLING, timeout=30000, bouncetime=10)
 		self.drivers.stop()
 		if result is None:
 			raise ValueError("Product not detected")
 	def stop(self):
 		self.drivers.stop()
+		GPIO.remove_event_detect(oosPin)
+		GPIO.remove_event_detect(pulsePin)
+		GPIO.remove_event_detect(irPin)
 		GPIO.output(acceptingPin, GPIO.LOW) #disable acceptor
-		GPIO.cleanup()
+		#GPIO.cleanup()
 
 class Dir(IntEnum):
 	CCW = -1
@@ -130,7 +147,7 @@ class Drivers():
 		GPIO.output(resetPin, True)
 		step = self._step
 		self._step = 1
-		self.step_to(step)
+		self._stepTo(step)
 	def run(self, speed):
 		self._speed = speed
 		if self._dirA != Dir.Stop or self._dirB != Dir.Stop:
@@ -141,15 +158,15 @@ class Drivers():
 	def sleep(self, driver, sleep=True):
 		if driver < 0 or driver >= len(sleepPins):
 			raise ValueError("Driver out of range")
-		if self._sleep[driver] == sleep:
+		if self._slept[driver] == sleep:
 			return
-		self._sleep[driver] = sleep
+		self._slept[driver] = sleep
 		GPIO.output(sleepPins[driver], not sleep)
 		time.sleep(1.7/1000.0) #1.7 ms
 		self.restep()
 	def sleep_arr(self, sleep_arr):
 		changed = False
-		for i, old, new in zip(self._sleep, sleep_arr):
+		for i, old, new in zip(self._slept, sleep_arr):
 			if old != new:
 				old = new
 				changed = True
@@ -158,14 +175,14 @@ class Drivers():
 			self.restep()
 	def wake_one(self, driver):
 		changed = False
-		for i, slept in enumerate(self._sleep):
+		for i, slept in enumerate(self._slept):
 			if i == driver:
 				if slept:
-					self._sleep[i] = False
+					self._slept[i] = False
 					changed = True
 			else:
 				if not slept:
-					self._sleep[i] = True
+					self._slept[i] = True
 					changed = True
 		if changed:
 			time.sleep(1.7/1000.0) #1.7 ms
@@ -182,11 +199,11 @@ class Drivers():
 		if not dirA and not dirB:
 			self._setSpeed(0)
 		elif not dirB:
-			_stepTo(0 if dirA > 0 else 4)
+			self._stepTo(0 if dirA > 0 else 4)
 		elif dirB == Dir.CW:
-			_stepTo(2 - dirA)
+			self._stepTo(2 - dirA)
 		else:
-			_stepTo(6 + dirA)
+			self._stepTo(6 + dirA)
 		if setSpeed:
 			self._setSpeed(self._speed)
 

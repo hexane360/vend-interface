@@ -24,7 +24,7 @@ class Settings():
 			self._configfile = configFile
 		else:
 			self._configfile = os.path.join("", "config.yaml")
-		
+
 		self._settings = default_settings #not a deep copy - be careful
 		if os.path.exists(self._configfile) and os.path.isfile(self._configfile):
 			print("Loading config")

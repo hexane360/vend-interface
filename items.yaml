@@ -1,15 +1,15 @@
-99:
-  "price": 2.0
-  "name": "Item A"
-  "qty": 5
-  "motor": 0
-98:
-  "price": 3.0
-  "name": "Item B"
-  "qty": 2
-  "motor": 1
 42:
-  "price": 10000.0
-  "name": "Unobtanium"
-  "qty": 9
-  "motor": 5
+  motor: 5
+  name: Unobtanium
+  price: 10000.0
+  qty: 9
+98:
+  motor: 1
+  name: Item B
+  price: 3.0
+  qty: 2
+99:
+  motor: 0
+  name: Item A
+  price: 2.0
+  qty: 5
