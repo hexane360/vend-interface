@@ -81,6 +81,7 @@ class Machine():
 				callback(oos)
 		GPIO.add_event_detect(oosPin, GPIO.BOTH, callback=shim, bouncetime=50) #50 ms
 	def vend(self, motor):
+		print("Vending on channel {}".format(motor))
 		if motor < 0 or motor > 2*len(sleepPins)-1:
 			raise ValueError("Invalid motor # {}".format(motor))
 		if not GPIO.input(irPin):
@@ -90,11 +91,13 @@ class Machine():
 			self.drivers.dir(Dir.Stop, Dir.CW)
 		else:
 			self.drivers.dir(Dir.CW, Dir.Stop)
+		print("Running motor")
 		self.drivers.run(255)
 		result = GPIO.wait_for_edge(irPin, GPIO.FALLING, timeout=30000, bouncetime=10)
 		self.drivers.stop()
 		if result is None:
 			raise ValueError("Product not detected")
+		print("Vend successful")
 	def stop(self):
 		self.drivers.stop()
 		GPIO.remove_event_detect(oosPin)

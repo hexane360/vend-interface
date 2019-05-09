@@ -27,9 +27,9 @@ socket.on('status', function(data) {
   $('.credit').html(data.status.creditText);
 });
 
-socket.on('error', function(data) {
+socket.on('vendError', function(data) {
   if (data.error === undefined) {
-    error("Bad error response");
+    error("Bad vendError response");
     return;
   }
   console.log("Error code: " + data.error.code);

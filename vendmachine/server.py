@@ -96,7 +96,7 @@ class Server():
 			"code": code,
 			"msg": msg,
 		}}
-		self.socketio.emit('error', json)
+		self.socketio.emit('vendError', json)
 
 	def vend(self, item):
 		if self._credit < item["price"]:
@@ -109,6 +109,8 @@ class Server():
 			print("Vending error: {}".format(e))
 			self._credit += item["price"]
 			self.error(str(e), 1)
+			return
+		self.socketio.emit('vendSuccess', {})
 		self.status_change(Status.Ready)
 
 	def run(self):
