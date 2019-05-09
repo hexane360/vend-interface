@@ -8,7 +8,7 @@ from flask_socketio import SocketIO
 from flask_login import LoginManager
 
 from vendmachine.items import Items
-#from vendmachine.machine import *
+from vendmachine.machine import Machine
 
 def oosEvent(gpio, value):
 	if not value: #out of service
@@ -53,6 +53,8 @@ class Server():
 			secret_key = secrets.token_urlsafe(32)
 			s.set(["server", "secretKey"], secret_key)
 			s.save()
+		self.app = Flask("vendmachine")
+		self.socketio = SocketIO(self.app)
 
 	def status_data(self):
 		return {"status": {

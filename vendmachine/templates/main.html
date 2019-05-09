@@ -10,10 +10,10 @@ $(document).ready(function() {
       data:$(this).serialize(),
       error: function(xhr, status, text) {
         switch (xhr.status) {
-          case 404: alert("api not found"); break;
-          case 400: alert("Vend address does not exist"); break;
-          case 402: alert("Insufficient credit"); break;
-          default: alert("Error requesting vend: " + xhr.status + text);
+          case 404: error("api not found"); break;
+          case 400: error("Vend address does not exist"); break;
+          case 402: error("Insufficient credit"); break;
+          default: error("Error requesting vend: " + xhr.status + text);
         }
       },
       success:function(data) {
@@ -30,9 +30,9 @@ $(document).ready(function() {
         data: $("#vend-request").serialize(),
         error: function(xhr, status, text) {
           switch (xhr.status) {
-            case 404: alert("api not found"); break;
+            case 404: error("api not found"); break;
             case 400: $('#vend-addr').val(""); break;
-            default: alert("Error getting price: " + xhr.status + text);
+            default: error("Error getting price: " + xhr.status + text);
           }
           $(".price").html("");
           price = null;
