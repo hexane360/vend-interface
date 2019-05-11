@@ -60,12 +60,15 @@ $(document).ready(function() {
       if ($(this).val().length > 2) { //clear user input
         $(this).val("");
       }
-      $(".price").html("");
+      $(".price").html(""); //price not known, clear it
     }
+  });
+  $('body').on('click', function(e) {
+    $('#vend-addr').delay(500).select(); //re-select vend address after click
   });
 });
 $(window).load(function() {
-  $('#vend-addr').select();
+  $('#vend-addr').select(); //auto-select input on load
 });
 </script>{% endblock %}
 {% block body %}
