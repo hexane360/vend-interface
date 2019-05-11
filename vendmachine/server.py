@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import secrets
+import time
 from enum import IntEnum, unique
 
 from flask import Flask
@@ -8,7 +9,6 @@ from flask_socketio import SocketIO
 from flask_login import LoginManager
 
 from vendmachine.items import Items
-from vendmachine.machine import Machine
 
 @unique
 class Status(IntEnum):
@@ -103,20 +103,28 @@ class Server():
 			raise ValueError("Insufficient Credit")
 		self._credit -= item["price"]
 		self.status_change(Status.Vending)
-		try:
-			self.machine.vend(item["motor"])
-		except Exception as e:
-			print("Vending error: {}".format(e))
-			self._credit += item["price"]
-			self.error(str(e), 1)
-			return
+		if self.machine is not None:
+			try:
+				self.machine.vend(item["motor"])
+			except Exception as e:
+				print("Vending error: {}".format(e))
+				self._credit += item["price"]
+				self.error(str(e), 1)
+				return
+		else:
+			print("Simulating vend on channel {}".format(item["motor"]))
+			time.sleep(5)
 		self.socketio.emit('vendSuccess', {})
 		self.status_change(Status.Ready)
 
 	def run(self):
-		self.machine = Machine()
-		self.machine.oosEvent(self.oos_event) #register interrupts
-		self.machine.pulseEvent(self.pulse_event)
+		try:
+			from vendmachine.machine import Machine
+			self.machine = Machine()
+			self.machine.oosEvent(self.oos_event) #register interrupts
+			self.machine.pulseEvent(self.pulse_event)
+		except ModuleNotFoundError:
+			print("Using simulated Machine")
 		import vendmachine.routes
 		from vendmachine.api import api
 		from vendmachine.ext import ext

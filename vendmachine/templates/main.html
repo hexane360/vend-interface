@@ -9,10 +9,17 @@ $(document).ready(function() {
       method:"POST",
       data:$(this).serialize(),
       error: function(xhr, status, text) {
+      	switch (status) {
+          case "timeout": break; //socket should handle connection messages
+          case "parsererror": error("Vend address does not exist"); break;
+          case "abort": break; //unknown
+        }
         switch (xhr.status) {
           case 404: error("api not found"); break;
           case 400: error("Vend address does not exist"); break;
           case 402: error("Insufficient credit"); break;
+          //returned when server is off but haproxy is working:
+          case 503: error("Server unavailable"); break;
           default: error("Error requesting vend: " + xhr.status + text);
         }
       },
@@ -29,9 +36,15 @@ $(document).ready(function() {
         url: "{{ url_for('api.price') }}",
         data: $("#vend-request").serialize(),
         error: function(xhr, status, text) {
+          switch (status) {
+            case "timeout": break;
+            case "parsererror": error("Invalid price received"); break;
+            case "abort": break;
+          }
           switch (xhr.status) {
             case 404: error("api not found"); break;
             case 400: $('#vend-addr').val(""); break;
+            case 503: error("Server unavailable"); break;
             default: error("Error getting price: " + xhr.status + text);
           }
           $(".price").html("");
@@ -44,7 +57,7 @@ $(document).ready(function() {
         }
       });
     } else {
-      if ($(this).val().length > 2) {
+      if ($(this).val().length > 2) { //clear user input
         $(this).val("");
       }
       $(".price").html("");
