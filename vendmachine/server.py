@@ -30,7 +30,7 @@ class Server():
 		self.settings = None
 		self._status = Status.Ready
 		self._credit = 0.0
-		self.items = Items()
+		self.items = None
 		self.app = None
 		self.host = None
 		self.port = None
@@ -41,6 +41,8 @@ class Server():
 	def setup(self):
 		from vendmachine.settings import init
 		self.settings = init()
+		self.items = Items(self.settings.get(["files", "items"]))
+
 		secret_key = self.settings.get(["server", "secretKey"])
 		if not secret_key:
 			print("Generating server key")
@@ -49,6 +51,7 @@ class Server():
 			self.settings.save()
 		self.app = Flask("vendmachine")
 		self.app.secret_key = secret_key
+
 		self.port = self.settings.get(["server", "port"])
 		self.host = self.settings.get(["server", "host"])
 		self.socketio = SocketIO(self.app)
@@ -112,7 +115,7 @@ class Server():
 				self.error(str(e), 1)
 				return
 		else:
-			print("Simulating vend on channel {}".format(item["motor"]))
+			print("Simulating vend on motor {}".format(item["motor"]))
 			time.sleep(5)
 		self.socketio.emit('vendSuccess', {})
 		self.status_change(Status.Ready)

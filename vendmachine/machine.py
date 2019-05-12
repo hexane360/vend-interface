@@ -49,7 +49,6 @@ class Monitor():
 			for cb in self._callbacks:
 				cb(not self._state) #return pulse that just ended
 	def register(self, callback):
-		print("Registering pulse callback")
 		self._callbacks.append(callback)
 
 class Machine():
@@ -81,7 +80,7 @@ class Machine():
 				callback(oos)
 		GPIO.add_event_detect(oosPin, GPIO.BOTH, callback=shim, bouncetime=50) #50 ms
 	def vend(self, motor):
-		print("Vending on channel {}".format(motor))
+		print("Vending on motor {}".format(motor))
 		if motor < 0 or motor > 2*len(sleepPins)-1:
 			raise ValueError("Invalid motor # {}".format(motor))
 		if not GPIO.input(irPin):

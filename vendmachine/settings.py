@@ -3,7 +3,7 @@
 import os
 import yaml
 
-settings = None
+settings = None #held globally so it can be accessed outside a Server
 
 default_settings = {
 	"server": {
@@ -15,6 +15,10 @@ default_settings = {
 	"logging": {
 		"log_file": "/home/vend/server_log",
 		"log_level": 4
+	},
+	"files": {
+		"items": "items.yaml",
+		"users": "users.yaml",
 	}
 }
 
@@ -71,5 +75,6 @@ class Settings():
 
 def init(configFile=None):
 	global settings
-	settings = Settings(configFile)
+	if settings is None: #only create one Settings
+		settings = Settings(configFile)
 	return settings
