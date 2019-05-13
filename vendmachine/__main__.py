@@ -6,7 +6,7 @@ This function also sets up handlers to respond to system shutdown signals.
 import sys
 import signal
 
-from vendmachine.server import server
+from vendmachine.server import initServer
 
 def main():
 	def kill(signum=None, frame=None):
@@ -23,6 +23,7 @@ def main():
 	signal.signal(signal.SIGTERM, kill) #kill, etc.
 
 	import vendmachine.settings
+	server = initServer()
 	server.setup()
 	server.run()
 

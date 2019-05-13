@@ -6,7 +6,6 @@ import secrets
 
 #this is a mess
 
-apiuser = ApiUser()
 global apiuser
 
 class Users():
@@ -201,3 +200,5 @@ class ApiUser():
 		return True
 	def is_anonymous(self):
 		return True
+
+apiuser = ApiUser()

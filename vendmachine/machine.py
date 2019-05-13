@@ -1,9 +1,15 @@
-import RPi.GPIO as GPIO
+try:
+	import RPi.GPIO as GPIO
+	simulated = False
+except ModuleNotFoundError:
+	print("Module 'RPi' not found. Running simulated machine")
+	simulated = True
 import time
 from enum import IntEnum
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
+if not simulated:
+	GPIO.setmode(GPIO.BCM)
+	GPIO.setwarnings(False)
 #motor pins (BCM designation)
 enablePin = 18 #pwm
 resetPin = 23

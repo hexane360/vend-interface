@@ -3,9 +3,7 @@
 import secrets
 import time
 from enum import IntEnum, unique
-
 from flask import Flask
-from flask_socketio import SocketIO
 from flask_login import LoginManager
 
 from vendmachine.items import Items
@@ -23,7 +21,7 @@ statusMap = {
 	Status.NotReady: "Not ready"
 }
 
-global server
+server = None
 
 class Server():
 	def __init__(self):
@@ -54,6 +52,8 @@ class Server():
 
 		self.port = self.settings.get(["server", "port"])
 		self.host = self.settings.get(["server", "host"])
+
+		from flask_socketio import SocketIO
 		self.socketio = SocketIO(self.app)
 
 	def status_data(self):
@@ -154,4 +154,8 @@ class Server():
 			self.socketio.emit('shutdown')
 		#other things to do?
 
-server = Server()
+def initServer():
+	global server
+	if server is None:
+		server = Server()
+	return server
