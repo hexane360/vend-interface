@@ -1,20 +1,46 @@
 #!/usr/bin/env python3
 
+"""Main API for all clients.
+
+"""
+
 from flask import Blueprint, request, jsonify, abort, make_response
 import json
+import functools
 
 from vendmachine.server import server, Status
 from vendmachine.settings import settings
-from vendmachine.auth import user_access
+from vendmachine.auth import ext_user_access, ext_admin_access
 
 api = Blueprint("api", __name__)
 
+def onRegister(setup_state):
+	"""Handles the registration of an API Blueprint.
+	
+	Doesn't do much currently.
+	"""
+	blueprint = setup_state.blueprint
+	#if setup_state.options.get('auth') == True:
+	if setup_state.url_prefix.startswith('/ext/'): #not really used right now
+		#inside here, 'route' works but not 'before_request'
+		#maybe use to register authentication-specific routes?
+		print("Authenticated API on {}".format(setup_state.url_prefix))
+
+api.record(onRegister)
+
 @api.route("/status", methods=['GET'])
+@ext_user_access
 def status():
+	"""Return the machine status, as defined in `Server.status_data()`.
+	
+	Requires user access.
+	"""
 	return jsonify(server.status_data()), 200
 
 @api.route("/refresh", methods=['POST'])
+@ext_admin_access
 def refresh():
+	"""Ask all websocket clients to refresh themselves."""
 	socketio.emit('refresh')
 	return status()
 
@@ -96,6 +122,14 @@ def vend_fixed(addr):
 	return status()
 
 def default_arg(request, arg, typ=int, default=None):
+	"""Try to find and coerce value in a Flask request,
+	returning 'default' if missing or invalid.
+
+	`request`: `flask.Request` to search.    
+	`arg`: Name of argument to search for.    
+	`typ`: Type to coerce to (default `int`).    
+	`default`: Default value to return on failure (default `None`).
+	"""
 	if arg not in request.values:
 		return default
 	try:
@@ -104,6 +138,13 @@ def default_arg(request, arg, typ=int, default=None):
 		return default
 
 def try_arg(request, arg, typ=int):
+	"""Try to find and coerce value in a Flask request,
+	   throwing ValueError if missing or invalid.
+
+	`request`: `flask.Request` to search.    
+	`arg`: Name of argument to search for.    
+	`typ`: Type to coerce to (default `int`).
+	"""
 	if not request.values or arg not in request.values:
 		error("Missing '{}' argument".format(arg))
 	try:
@@ -112,6 +153,11 @@ def try_arg(request, arg, typ=int):
 		error("Invalid '{}' argument".format(arg))
 
 def error(msg="Invalid query", code=400):
+	"""Make an API-friendly error.
+	
+	`msg`: Error message to return (default `"Invalid query"`).    
+	`code`: HTTP status code to return (default `400`).
+	"""
 	json = {'error': msg}
 	#return jsonify(json), code
 	abort(make_response(jsonify(json), code))

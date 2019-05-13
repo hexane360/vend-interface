@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 
-import secrets
-import time
+#handle a few common mistakes
+try:
+	import secrets
+except ImportError:
+	raise ImportError("Module requires Python >3.6")
+try:
+	from flask import Flask
+	from flask_login import LoginManager
+except ImportError:
+	raise ImportError("Unable to find Flask. Module must be run from up-to-date virtualenv.")
+
 from enum import IntEnum, unique
-from flask import Flask
-from flask_login import LoginManager
+import time
 
 from vendmachine.items import Items
 
@@ -22,6 +30,10 @@ statusMap = {
 }
 
 server = None
+"""Global `Server` instance to be shared by all modules.
+
+.. warning:: This will be `None` until `initServer()` is first called.
+"""
 
 class Server():
 	def __init__(self):
@@ -126,14 +138,15 @@ class Server():
 			self.machine = Machine()
 			self.machine.oosEvent(self.oos_event) #register interrupts
 			self.machine.pulseEvent(self.pulse_event)
-		except ModuleNotFoundError:
-			print("Using simulated Machine")
+		except (ModuleNotFoundError, NameError):
+			print("Running simulated Machine")
+			self.machine = None
 		import vendmachine.routes
 		from vendmachine.api import api
 		from vendmachine.ext import ext
 		self.app.register_blueprint(api, url_prefix="/api") #subdomain="api"
 		self.app.register_blueprint(ext, url_prefix="/ext")
-		self.app.register_blueprint(api, url_prefix="/ext/api")
+		self.app.register_blueprint(api, url_prefix="/ext/api", auth=True)
 		self.socketio.run(self.app, debug=True, use_reloader=False, host=self.host, port=self.port)
 
 	def stop(self):
