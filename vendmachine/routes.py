@@ -3,14 +3,14 @@
 from flask import render_template, abort
 
 from vendmachine.server import server
-from vendmachine.settings import settings
+from vendmachine.config import config
 
 try:
 	socketio = server.socketio
 	app = server.app
 except AttributeError: #need to make Server for pdoc to run
-	from vendmachine.server import initServer
-	server = initServer()
+	from vendmachine.server import init_server
+	server = init_server()
 	server.setup()
 	socketio = server.socketio
 	app = server.app

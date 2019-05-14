@@ -9,8 +9,8 @@ import json
 import functools
 
 from vendmachine.server import server, Status
-from vendmachine.settings import settings
-from vendmachine.auth import ext_user_access, ext_admin_access
+from vendmachine.config import config
+from vendmachine.auth import ext_read_access, ext_write_access, ext_admin_access
 
 api = Blueprint("api", __name__)
 
@@ -29,7 +29,7 @@ def onRegister(setup_state):
 api.record(onRegister)
 
 @api.route("/status", methods=['GET'])
-@ext_user_access
+@ext_read_access
 def status():
 	"""Return the machine status, as defined in `Server.status_data()`.
 	
@@ -45,6 +45,7 @@ def refresh():
 	return status()
 
 @api.route("/credit", methods=['POST'])
+@ext_write_access
 def set_credit():
 	if not request.values or "amount" not in request.values:
 		error("Missing 'amount' argument")
@@ -56,14 +57,17 @@ def set_credit():
 	return status()
 
 @api.route("/credit", methods=['GET'])
+@ext_read_access
 def get_credit():
 	return jsonify({"credit": server.credit()}), 200
 
 @api.route("/items", methods=['GET'])
+@ext_read_access
 def get_items():
 	return jsonify({"items": server.items.items()})
 
 @api.route("/item/<int:addr>", methods=['PUT'])
+@ext_write_access
 def update_item(addr):
 	if not request.values:
 		error("Missing arguments")
@@ -77,12 +81,14 @@ def update_item(addr):
 	return jsonify({"item": server.items[addr]}), 200
 
 @api.route("/item/<int:addr>", methods=['GET'])
+@ext_read_access
 def get_item(addr):
 	if addr not in server.items:
 		error("Item does not exist", 404)
 	return jsonify({"item": server.items[addr]}), 200
 
 @api.route("/price", methods=['GET'])
+@ext_read_access
 def price():
 	print("price: {}".format(request.values['addr']))
 	addr = try_arg(request, 'addr', int)
@@ -93,6 +99,7 @@ def price():
 	
 
 @api.route("/item/<int:addr>/price", methods=['GET'])
+@ext_read_access
 def price_fixed(addr):
 	if addr not in server.items:
 		error("Item does not exist", 404)
@@ -100,6 +107,7 @@ def price_fixed(addr):
 	return jsonify({"price": price, "text": "${:,.2f}".format(price)})
 
 @api.route("/vend", methods=['POST'])
+@ext_write_access
 def vend():
 	#print("vend(), request.values={}".format(request.values))
 	addr = try_arg(request, 'addr', int)
@@ -112,6 +120,7 @@ def vend():
 	return status()
 
 @api.route("/item/<int:addr>/vend", methods=['POST'])
+@ext_write_access
 def vend_fixed(addr):
 	if addr not in server.items:
 		error("Item does not exist", 404)

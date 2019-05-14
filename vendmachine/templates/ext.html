@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}MakerMart Vending Machine External{% endblock %}
+{% block style %}<link rel="stylesheet" href="{{ url_for('static', filename='ext.css') }}">{% endblock %}
+{% block script %}{% endblock %}
+{% block body %}
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+      <div>{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+<p>External Interface
+<div class="status">Disconnected</div>
+Credit: <span class="credit">$0.00</span>
+{% endblock %}

@@ -12,7 +12,7 @@ Configuration
 =============
 The behavior of the server can be configured using three YAML files:
 
-- config.yaml: Controls server settings (bind address, port, etc.). Further documented in `settings`
+- config.yaml: Controls server settings (bind address, port, etc.). Further documented in `config`
 - items.yaml: Controls inventory manifest for the vending machine. Further documented in `items`
 - users.yaml: Controls users and user permissions. Further documented in `users`
 """
