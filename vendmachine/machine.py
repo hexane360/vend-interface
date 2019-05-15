@@ -97,7 +97,7 @@ class Machine():
 			self.drivers.dir(Dir.CW, Dir.Stop)
 		print("Running motor")
 		self.drivers.run(255)
-		result = GPIO.wait_for_edge(irPin, GPIO.FALLING, timeout=30000, bouncetime=10)
+		result = GPIO.wait_for_edge(irPin, GPIO.FALLING, timeout=3000, bouncetime=10)
 		self.drivers.stop()
 		if result is None:
 			raise ValueError("Product not detected")
@@ -141,10 +141,14 @@ class Drivers():
 		GPIO.setup(stepPin, GPIO.OUT, initial=GPIO.LOW)
 		GPIO.setup(sleepPins, GPIO.OUT, initial=GPIO.LOW) #high to wake
 		GPIO.output(stepPin, True)
+	def __del__(self):
+		GPIO.output(resetPin, False) #deactivate drivers
+		self._setSpeed(0) #stop PWM
 	def reset(self):
 		GPIO.output(resetPin, False)
 		time.sleep(50.0/1000000.0) #50 us
 		GPIO.output(resetPin, True)
+		self._stepN(1) #gets drivers ready for step commands
 		self._dirA = Dir.CW
 		self._dirB = Dir.CW
 		self._step = 1
@@ -173,8 +177,9 @@ class Drivers():
 		self.restep()
 	def sleep_arr(self, sleep_arr):
 		changed = False
-		for i, old, new in zip(self._slept, sleep_arr):
+		for i, (old, new) in enumerate(zip(self._slept, sleep_arr)):
 			if old != new:
+				GPIO.output(sleepPins[i], not new)
 				old = new
 				changed = True
 		if changed:
@@ -185,13 +190,15 @@ class Drivers():
 		for i, slept in enumerate(self._slept):
 			if i == driver:
 				if slept:
+					GPIO.output(sleepPins[i], True)
 					self._slept[i] = False
 					changed = True
 			else:
 				if not slept:
+					GPIO.output(sleepPins[i], False)
 					self._slept[i] = True
 					changed = True
-		if changed:
+		if changed or True: #just always restep to increase consistency
 			time.sleep(1.7/1000.0) #1.7 ms
 			self.restep()
 
@@ -217,11 +224,11 @@ class Drivers():
 	def _stepTo(self, end):
 		self._stepN(end + (8 if end < self._step else 0) - self._step)
 	def _stepN(self, num):
-		for i in range(num):
+		for i in range(2*num): #double because drivers are actually quarter stepping
 			GPIO.output(stepPin, False)
-			time.sleep(20.0/1000.0) #20 ms
+			time.sleep(20.0/1000000.0) #20 us
 			GPIO.output(stepPin, True)
-			time.sleep(20.0/1000.0) #20 ms
+			time.sleep(20.0/1000000.0) #20 us
 		self._step = (self._step + num)%8
 	def _setSpeed(self, speed):
 		if speed > 100.0:
