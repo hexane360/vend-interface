@@ -98,8 +98,9 @@ class Server():
 		"""
 		from vendmachine.config import init
 		self.config = init(config_dir)
-		self.items = Items(config_dir, self.config.get(["files", "items"]))
-		self.users = Users(config_dir, self.config.get(["files", "users"]))
+		print("Autosave {}".format("enabled" if self.config.get(["files", "autosave"]) else "disabled"))
+		self.items = Items(config_dir, self.config.get(["files", "items"]), self.config.get(["files", "autosave"]))
+		self.users = Users(config_dir, self.config.get(["files", "users"]), self.config.get(["files", "autosave"]))
 
 		secret_key = self.config.get(["server", "secretKey"])
 		if not secret_key:
@@ -167,10 +168,12 @@ class Server():
 		self.socketio.emit('vendError', json)
 
 	def vend(self, item):
+		if self._status != Status.Ready:
+			raise RuntimeError("Not ready to vend")
 		if self._credit < item["price"]:
 			raise ValueError("Insufficient Credit")
-		self._credit -= item["price"]
 		self.status_change(Status.Vending)
+		self._credit -= item["price"]
 		if self.machine is not None:
 			try:
 				self.machine.vend(item["motor"])
@@ -187,11 +190,12 @@ class Server():
 
 	def run(self):
 		try:
+			from RPi import GPIO
 			from vendmachine.machine import Machine
 			self.machine = Machine()
 			self.machine.oosEvent(self.oos_event) #register interrupts
 			self.machine.pulseEvent(self.pulse_event)
-		except (ModuleNotFoundError, NameError):
+		except (ModuleNotFoundError, RuntimeError):
 			print("Running simulated Machine")
 			self.machine = None
 		import vendmachine.routes
@@ -200,20 +204,18 @@ class Server():
 		self.app.register_blueprint(api, url_prefix="/api") #subdomain="api"
 		self.app.register_blueprint(ext, url_prefix="/ext")
 		self.app.register_blueprint(api, url_prefix="/ext/api") #, auth=True
-		self.socketio.run(self.app, debug=True, use_reloader=True, host=self._host, port=self._port)
+		self.socketio.run(self.app, debug=True, use_reloader=False, host=self._host, port=self._port)
 
 	def stop(self):
 		if self.users is not None:
-			print("Saving users")
-			self.users.save()
+			self.users.exit()
 		if self.items is not None:
-			print("Saving items")
-			self.items.save()
+			self.items.exit()
 		if self.config is not None:
-			print("Saving config")
+			#print("Saving config")
 			self.config.save()
 		if self.machine is not None:
-			print("Closing GPIO")
+			#print("Closing GPIO")
 			self.machine.stop()
 		if self.socketio is not None:
 			print("Sending socket shutdown")

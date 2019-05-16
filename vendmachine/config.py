@@ -2,6 +2,7 @@
 
 import os
 import yaml
+import collections
 
 config = None #held globally so it can be accessed outside a Server
 
@@ -23,8 +24,17 @@ default_config = {
 	"files": {
 		"items": "items.yaml",
 		"users": "users.yaml",
+		"autosave": True,
 	}
 }
+
+def recursive_update(old, new):
+	for k, v in new.items():
+		if isinstance(v, collections.Mapping):
+			old[k] = recursive_update(old.get(k, {}), v)
+		else:
+			old[k] = v
+	return old
 
 class Config():
 	def __init__(self, config_dir=""):
@@ -41,7 +51,8 @@ class Config():
 					print("Invalid YAML File: {}".format(self._config_file))
 					print("details: {}".format(e))
 					raise
-				self._config.update(new_config)
+				recursive_update(self._config, new_config)
+				#self._config.update(new_config)
 		else:
 			print("Writing default setings")
 			with open(self._config_file, "w") as f:

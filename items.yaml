@@ -1,15 +1,17 @@
-42:
-  motor: 5
-  name: Unobtanium
-  price: 10000.0
-  qty: 9
-98:
-  motor: 1
-  name: Item B
-  price: 3.0
-  qty: 2
-99:
-  motor: 0
-  name: Item A
-  price: 2.0
-  qty: 5
+channels:
+  98:
+    item: Item B
+    motor: 2
+    qty: 2
+  99:
+    item: Item A
+    motor: 4
+    qty: 5
+items:
+  Item A:
+    price: 2.0
+    note: "Accepts arbitrary key/value pairs"
+  Item B:
+    price: 3.0
+  new:
+    price: 4.5

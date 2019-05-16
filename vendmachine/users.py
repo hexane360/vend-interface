@@ -10,8 +10,8 @@ global api_user
 global anon_user
 
 class Users():
-	def __init__(self, usersPath="", usersFile="users.yaml"):
-		self.autosave = True
+	def __init__(self, usersPath="", usersFile="users.yaml", autosave=True):
+		self.autosave = autosave
 		self._dirty = False
 		self._users = {}
 		if os.path.isabs(usersFile):
@@ -21,15 +21,14 @@ class Users():
 		self.load()
 
 	def load(self):
-		usersFile = self._usersFile
-		if os.path.isfile(usersFile):
-			print("Loading user list")
+		if os.path.isfile(self._usersFile):
+			print("Loading user list from file '{}'".format(self._usersFile))
 			try:
-				with open(usersFile, "r") as f:
+				with open(self._usersFile, "r") as f:
 					try:
 						users = yaml.safe_load(f)
 					except yaml.YAMLError as e:
-						print("Invalid YAML File: {}".format(usersFile))
+						print("Invalid YAML File: '{}'".format(self._usersFile))
 						print("details: {}".format(e))
 						raise
 					for obj in users:
@@ -40,14 +39,14 @@ class Users():
 						self._users[uid] = user
 					self.dirty(None)
 			except EnvironmentError as e:
-				print("Unable to open users file '{}'".format(usersFile))
+				print("Unable to open users file '{}'".format(self._usersFile))
 				raise
 		else:
-			if os.path.exists(usersFile):
-				raise EnvironmentError("Config path '{}' exists but is not a file".format(usersFile))
+			if os.path.exists(self._usersFile):
+				raise EnvironmentError("Config path '{}' exists but is not a file".format(self._usersFile))
 			print("Creating user list")
 			self._users = {}
-			with open(usersFile, "w") as f:
+			with open(self._usersFile, "w") as f:
 				yaml.safe_dump([], f)
 			self.dirty()
 	

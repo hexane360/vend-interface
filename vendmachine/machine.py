@@ -3,7 +3,7 @@ try:
 	simulated = False
 	GPIO.setmode(GPIO.BCM)
 	GPIO.setwarnings(False)
-except ModuleNotFoundError: #Server handles actual simulation
+except (ModuleNotFoundError, RuntimeError): #need for pdoc to work on non-RPi
 	pass
 
 import time
