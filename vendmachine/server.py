@@ -22,6 +22,7 @@ except ImportError:
 
 from enum import IntEnum, unique
 import time
+import eventlet
 
 from vendmachine.items import Items
 from vendmachine.users import Users
@@ -157,35 +158,40 @@ class Server():
 			print("Bill acceptor back in service")
 
 	def status_update(self):
-		print("status, credit={}".format(self._credit))
-		self.socketio.emit('status', self.status_data())
+		print("status {}, credit={}".format(str(self._status), self._credit))
+		self.socketio.emit('status', self.status_data())		
 
-	def error(self, msg="Unknown error", code=0):
-		json = {"error": {
-			"code": code,
-			"msg": msg,
-		}}
-		self.socketio.emit('vendError', json)
-
-	def vend(self, item):
+	def vend(self, channel):
+		if channel not in self.items.channels():
+			raise KeyError("Channel not active")
+		motor = self.items.get_channel(channel)["motor"]
+		price = self.items.get_item(channel=channel)["price"]
 		if self._status != Status.Ready:
 			raise RuntimeError("Not ready to vend")
-		if self._credit < item["price"]:
+		if self._credit < price:
 			raise ValueError("Insufficient Credit")
+		self._credit -= price
 		self.status_change(Status.Vending)
-		self._credit -= item["price"]
-		if self.machine is not None:
-			try:
-				self.machine.vend(item["motor"])
-			except Exception as e:
-				print("Vending error: {}".format(e))
-				self._credit += item["price"]
-				self.error(str(e), 1)
-				return
-		else:
-			print("Simulating vend on motor {}".format(item["motor"]))
-			time.sleep(5)
-		self.socketio.emit('vendSuccess', {})
+		eventlet.spawn(self._vendTask, motor, price) #allows websocket to continue
+
+	def _vendTask(self, motor, price):
+		try:
+			if self.machine is not None:
+				self.machine.vend(motor)
+			else:
+				print("Simulating vend on motor {}".format(motor))
+				eventlet.sleep(5)
+				#raise ValueError("Example Error")
+				print("Simulated vend done")
+			self.socketio.emit('vendSuccess', {})
+		except Exception as e:
+			print("Vending error: {}".format(e))
+			self._credit += price
+			json = {"error": {
+				"code": 1,
+				"msg": str(e),
+			}}
+			self.socketio.emit('vendError', json)
 		self.status_change(Status.Ready)
 
 	def run(self):

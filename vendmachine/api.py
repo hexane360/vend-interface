@@ -268,7 +268,7 @@ def vend():
 	if channel not in server.items.channels():
 		error("Channel does not exist")
 	try:
-		server.vend(server.items[channel])
+		server.vend(channel)
 	except ValueError:
 		error("Insufficient credit", 402)
 	except RuntimeError:
@@ -281,7 +281,7 @@ def vend_fixed(channel):
 	if channel not in server.items.channels():
 		error("Channel does not exist", 404)
 	try:
-		server.vend(server.items[channel])
+		server.vend(channel)
 	except ValueError:
 		error("Insufficient credit", 402)
 	except RuntimeError:

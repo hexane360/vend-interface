@@ -17,21 +17,29 @@ button {
   width: 5em;
 }
 .error {
-  width: 80%;
-  margin: 0 auto;
   background: red;
+}
+.success {
+  background: green;
+}
+.info {
+  background: gray;
+}
+.msg {
+  width: 80%;
+  margin: 5px auto;
   border: 2px solid;
   border-radius: 0.5em;
   opacity: 1;
-  -webkit-transform-origin: center top;
-  transform-origin: center top;
-  -webkit-transition: -webkit-transform 0.5s ease-in, color 0s ease-in 0.4s;
-  transition: transform 0.5s ease-in, color 0s ease-in 0.4s;
+  height: 1.5em;
+  line-height: 1.5em;
+  -webkit-transition: color 0s ease-in 0.4s, height 0.5s ease-in;
+  transition: color 0s ease-in 0.4s, height 0.5s ease-in;
 }
-.error.hide {
+.msg.hide {
   color: rgba(0,0,0,0); /* hide text */
-  -webkit-transform: scaleY(0);
-  transform: scaleY(0); /* scaleX(0.5) */
-  -webkit-transition: -webkit-transform 3s ease-in, color 0s ease-in 1.5s;
-  transition: transform 3s ease-in, color 0s ease-in 1.5s; /* long delay */
+  height: 0px;
+  opacity: 0;
+  -webkit-transition: opacity 0s ease-in 3s, color 0.2s ease-in 1.5s, height 3s ease-in;
+  transition: opacity 0s ease-in 3s, color 0.2s ease-in 1.5s, height 3s ease-in; /* long delay */
 }
