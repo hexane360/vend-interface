@@ -51,7 +51,8 @@ socket.on('refresh', function(msg) {
 function removeError() {
   $('.error').addClass("hide");
 }
-function error(msg, duration=5000) {
+function error(msg, duration) {
+  if (duration === undefined) duration = 5000;
   $('.error').html(msg);
   $('.error').removeClass("hide");
   window.setTimeout(removeError, duration);
@@ -59,7 +60,8 @@ function error(msg, duration=5000) {
 function removeInfo() {
   $('.info').addClass("hide");
 }
-function info(msg, duration=5000) {
+function info(msg, duration) {
+  if (duration === undefined) duration = 5000;
   $('.info').html(msg);
   $('.info').removeClass("hide");
   window.setTimeout(removeInfo, duration);
@@ -67,7 +69,8 @@ function info(msg, duration=5000) {
 function removeSuccess() {
   $('.success').addClass("hide");
 }
-function success(msg, duration=5000) {
+function success(msg, duration) {
+  if (duration === undefined) duration = 5000;
   $('.success').html(msg);
   $('.success').removeClass("hide");
   window.setTimeout(removeSuccess, duration);
