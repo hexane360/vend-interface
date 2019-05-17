@@ -16,7 +16,7 @@ api = Blueprint("api", __name__)
 
 def onRegister(setup_state):
 	"""Handles the registration of an API Blueprint.
-	
+
 	Doesn't do much currently.
 	"""
 	blueprint = setup_state.blueprint
@@ -32,7 +32,7 @@ api.record(onRegister)
 @ext_read_access
 def api_root():
 	"""Return all available API endpoints in a map.
-	
+
 	Requires read access.
 	"""
 	return jsonify({
@@ -54,7 +54,7 @@ def api_root():
 @ext_read_access
 def status(code=200):
 	"""Return the machine status, as defined in `Server.status_data()`.
-	
+
 	Requires read access.
 	"""
 	return jsonify(server.status_data()), code
@@ -63,7 +63,7 @@ def status(code=200):
 @ext_admin_access
 def refresh():
 	"""Ask all websocket clients to refresh themselves.
-	
+
 	Requires admin access.
 	"""
 	socketio.emit('refresh')

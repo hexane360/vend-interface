@@ -22,6 +22,7 @@ except ImportError:
 
 from enum import IntEnum, unique
 import time
+import functools
 import eventlet
 
 from vendmachine.items import Items
@@ -49,10 +50,10 @@ server = None
 class Server():
 
 	"""The class holding everything together.
-	
+
 	Most items are uninitalized before calling `Server.setup()`,
 	which also accepts a configuration directory.
-	
+
 	`Server.run()` actually starts the SocketIO/Flask server,
 	and `Server.stop()` should be called to gracefully shutdown.
 
@@ -71,7 +72,7 @@ class Server():
 		"""`flask.Flask` object containing the main Flask application."""
 		self.socketio = None
 		"""`flask_socketio.SocketIO` object containing the main socketio server.
-		
+
 		Ultimately responsible for actually running the Flask app."""
 		self.login_manager = LoginManager()
 		"""`flask_login.LoginManager` handling user sessions and authentication."""
@@ -81,12 +82,12 @@ class Server():
 
 	def setup(self, config_dir=""):
 		"""Setup the Server's configurations, outputs, and Flask objects.
-		
+
 		If `config_dir` is specified, look there for `config.yaml`. Otherwise
 		look in the current directory.
-		
+
 		Also handles generating or loading a secret key for the Flask server.
-		
+
 		After this function, the following properties should be initalized (not `None`):
 
 		- `Server.config` as `vendmachine.config.Config`
@@ -95,7 +96,7 @@ class Server():
 		- `Server.app` as `flask.Flask`
 		- `Server.socketio` as `flask_socketio.SocketIO`
 		- `Server.login_manager` as `flask_login.LoginManager`
-		
+
 		"""
 		from vendmachine.config import init
 		self.config = init(config_dir)
@@ -112,16 +113,19 @@ class Server():
 		self.app = Flask("vendmachine")
 		self.app.secret_key = secret_key
 
-		#from vendmachine.users import Users
-		#self.logins = Users(config_dir, self.config.get(["files", "users"]))
-
 		self.login_manager.init_app(self.app)
+		from flask_socketio import SocketIO
+		self.socketio = SocketIO(self.app, logger=False, engineio_logger=True)
+
+		import vendmachine.routes
+		from vendmachine.api import api
+		from vendmachine.ext import ext
+		self.app.register_blueprint(api, url_prefix="/api") #subdomain="api"
+		self.app.register_blueprint(ext, url_prefix="/ext")
+		self.app.register_blueprint(api, url_prefix="/ext/api") #, auth=True
 
 		self._port = self.config.get(["server", "port"])
 		self._host = self.config.get(["server", "host"])
-
-		from flask_socketio import SocketIO
-		self.socketio = SocketIO(self.app)
 
 	def status_data(self):
 		return {"status": {
@@ -159,7 +163,7 @@ class Server():
 
 	def status_update(self):
 		print("status {}, credit={}".format(str(self._status), self._credit))
-		self.socketio.emit('status', self.status_data())		
+		self.socketio.emit('status', self.status_data())
 
 	def vend(self, channel):
 		if channel not in self.items.channels():
@@ -181,15 +185,15 @@ class Server():
 			else:
 				print("Simulating vend on motor {}".format(motor))
 				eventlet.sleep(5)
-				#raise ValueError("Example Error")
 				print("Simulated vend done")
+			print("Vend Successful")
 			self.socketio.emit('vendSuccess', {})
 		except Exception as e:
 			print("Vending error: {}".format(e))
 			self._credit += price
 			json = {"error": {
-				"code": 1,
-				"msg": str(e),
+			        "code": 1,
+			        "msg": str(e),
 			}}
 			self.socketio.emit('vendError', json)
 		self.status_change(Status.Ready)
@@ -204,12 +208,6 @@ class Server():
 		except (ModuleNotFoundError, RuntimeError):
 			print("Running simulated Machine")
 			self.machine = None
-		import vendmachine.routes
-		from vendmachine.api import api
-		from vendmachine.ext import ext
-		self.app.register_blueprint(api, url_prefix="/api") #subdomain="api"
-		self.app.register_blueprint(ext, url_prefix="/ext")
-		self.app.register_blueprint(api, url_prefix="/ext/api") #, auth=True
 		self.socketio.run(self.app, debug=True, use_reloader=False, host=self._host, port=self._port)
 
 	def stop(self):

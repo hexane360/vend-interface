@@ -8,6 +8,7 @@ except (ModuleNotFoundError, RuntimeError): #need for pdoc to work on non-RPi
 
 import time
 from enum import IntEnum
+import eventlet
 
 #motor pins (BCM designation)
 enablePin = 18 #pwm
@@ -22,12 +23,6 @@ oosPin = 22 #out of service
 
 #ir pin
 irPin = 12
-
-def irEvent(channel):
-	if GPIO.input(channel):
-		print("IR: 1")
-	else:
-		print("IR: 0")
 
 #class to monitor a GPIO pin and return debounced events
 #returns events at time of *next* edge
@@ -48,8 +43,8 @@ class Monitor():
 		t = time.monotonic_ns()
 		delta = t - self._t
 		self._t = t
-		print("Got pulse event: {}".format(state))
-		print("Time difference: {} ms".format(delta/1000000))
+		#print("Got pulse event: {}".format(state))
+		#print("Time difference: {} ms".format(delta/1000000))
 		if (delta > self.debounce*1000000):
 			for cb in self._callbacks:
 				cb(not self._state) #return pulse that just ended
@@ -66,7 +61,7 @@ class Machine():
 		self._pulse = Monitor(pulsePin, pull_up_down = GPIO.PUD_UP)
 
 		GPIO.setup(irPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-		#GPIO.add_event_detect(irPin, GPIO.BOTH, callback=irEvent)
+		GPIO.add_event_detect(irPin, GPIO.FALLING)# callback=self._irEvent)
 
 	def pulseEvent(self, callback):
 		def shim(val):
@@ -85,23 +80,37 @@ class Machine():
 				callback(oos)
 		GPIO.add_event_detect(oosPin, GPIO.BOTH, callback=shim, bouncetime=50) #50 ms
 	def vend(self, motor):
-		print("Vending on motor {}".format(motor))
+		#print("Vending on motor {}".format(motor))
 		if motor < 0 or motor > 2*len(sleepPins)-1:
 			raise ValueError("Invalid motor # {}".format(motor))
 		if not GPIO.input(irPin):
 			raise ValueError("IR beam broken")
 		self.drivers.wake_one(motor >> 1) #which driver to run
-		if motor%2:                      #left or right motor on driver
+		if motor%2:                       #left or right motor on driver
 			self.drivers.dir(Dir.Stop, Dir.CW)
 		else:
 			self.drivers.dir(Dir.CW, Dir.Stop)
 		print("Running motor")
-		self.drivers.run(255)
-		result = GPIO.wait_for_edge(irPin, GPIO.FALLING, timeout=3000, bouncetime=10)
-		self.drivers.stop()
-		if result is None:
-			raise ValueError("Product not detected")
-		print("Vend successful")
+		self.drivers.run(120)
+		try:
+			GPIO.event_detected(irPin) #reset any events
+			vend_t = time.monotonic_ns()
+			stop_t = vend_t + 10*1000000000 #wait 10s for vend
+			t = time.monotonic_ns()
+			while stop_t > t:
+				#time_left = (stop_t - t)//1000000
+				#result = GPIO.wait_for_edge(irPin, GPIO.FALLING, timeout=time_left)
+				#t = time.monotonic_ns()
+				#print("delta: {} ms".format((t-vend_t)/1000000))
+				eventlet.sleep(0.01) #10 ms
+				if GPIO.event_detected(irPin) and not GPIO.input(irPin):
+					break
+				t = time.monotonic_ns()
+			else:
+				raise ValueError("Product not detected")
+		finally:
+			self.drivers.stop()
+
 	def stop(self):
 		self.drivers.stop()
 		GPIO.remove_event_detect(oosPin)
