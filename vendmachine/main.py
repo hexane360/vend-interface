@@ -6,6 +6,7 @@ The only reason this file exists is to provide a public
 place to document what happens in `vendmachine/__main__.py`.
 """
 
+import os
 import sys
 import signal
 
@@ -13,7 +14,7 @@ from vendmachine.server import init_server
 
 def kill(signum=None, frame=None):
 	"""Gracefully shut down the server and GPIO interface.
- 
+
 	`signum` is the code of the system signal received. Currently unused.    
 	`frame` is the current stack frame. Currently unused.
 	"""
@@ -32,4 +33,8 @@ def main():
 	global server #allows kill to access server.stop()
 	server = init_server()
 	server.setup()
-	server.run()
+	if "--fork" in sys.argv:
+		if os.fork() == 0: #child process
+			server.run()
+	else:
+		server.run()
