@@ -98,10 +98,6 @@ class Machine():
 			stop_t = vend_t + 10*1000000000 #wait 10s for vend
 			t = time.monotonic_ns()
 			while stop_t > t:
-				#time_left = (stop_t - t)//1000000
-				#result = GPIO.wait_for_edge(irPin, GPIO.FALLING, timeout=time_left)
-				#t = time.monotonic_ns()
-				#print("delta: {} ms".format((t-vend_t)/1000000))
 				eventlet.sleep(0.01) #10 ms
 				if GPIO.event_detected(irPin) and not GPIO.input(irPin):
 					break
@@ -113,9 +109,9 @@ class Machine():
 
 	def stop(self):
 		self.drivers.stop()
-		GPIO.remove_event_detect(oosPin)
-		GPIO.remove_event_detect(pulsePin)
-		GPIO.remove_event_detect(irPin)
+		#GPIO.remove_event_detect(oosPin)
+		#GPIO.remove_event_detect(pulsePin)
+		#GPIO.remove_event_detect(irPin)
 		GPIO.output(acceptingPin, GPIO.LOW) #disable acceptor
 		#GPIO.cleanup()
 
