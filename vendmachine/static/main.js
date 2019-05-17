@@ -15,10 +15,11 @@ $(document).ready(function() {
         var data = JSON.parse(xhr.responseText);
         switch (xhr.status) {
           case 404: error("api not found"); break;
-          case 400: if (data.error !== undefined)
+          case 400:
+            if (data.error !== undefined)
               error(data.error);
             else
-          	  error("Vend address does not exist");
+              error("Vend address does not exist");
           break;
           case 402: error("Insufficient credit"); break;
           case 409: error("Vending in progress"); break;
@@ -37,6 +38,30 @@ $(document).ready(function() {
   $('#vend-addr').on('keyup keypress blur change', function(e) {
     //console.log("changed")
     if ($(this).val().length == 2) {
+      if ($(this).val() == "**") {
+        console.log("looking up IP");
+        $.ajax({
+          url: "https://api.ipify.org/?format=json",
+          method: "GET",
+          error: function(xhr, status, text) {
+            error("Could not lookup IP");
+          },
+          success: function(data) {
+            if (data.ip === undefined) {
+              error("Could not parse IP");
+            } else {
+              console.log("IP: " + data.ip);
+              info("IP: " + data.ip, 30000);
+            }
+          }
+        });
+        $(this).val("");
+        return;
+      }
+      if ($(this).val() == "*7") {
+        console.log("Refreshing");
+        window.location.reload(true);
+      }
       if ($(this).val() == oldVal) return;
       $.ajax({
         url: "/api/channels/" + $(this).val() + "/price",
@@ -68,7 +93,7 @@ $(document).ready(function() {
     }
     oldVal = $(this).val()
   });
-  $('body').on('click', function(e) {
+  $(document).on('click', function(e) {
     $('#vend-addr').delay(500).select(); //re-select vend address after click
   });
 });
