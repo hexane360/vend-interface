@@ -36,7 +36,7 @@ $(document).ready(function() {
   });
   var oldVal = "";
   $('#vend-addr').on('keyup keypress blur change', function(e) {
-    //console.log("changed")
+    if ($(this).val() == oldVal) return;
     if ($(this).val().length == 2) {
       if ($(this).val() == "**") {
         console.log("looking up IP");
@@ -61,8 +61,8 @@ $(document).ready(function() {
       if ($(this).val() == "*7") {
         console.log("Refreshing");
         window.location.reload(true);
+        return;
       }
-      if ($(this).val() == oldVal) return;
       $.ajax({
         url: "/api/channels/" + $(this).val() + "/price",
         error: function(xhr, status, text) {

@@ -9,8 +9,8 @@ channels:
     qty: 5
 items:
   Item A:
+    note: Accepts arbitrary key/value pairs
     price: 2.0
-    note: "Accepts arbitrary key/value pairs"
   Item B:
     price: 3.0
   new:

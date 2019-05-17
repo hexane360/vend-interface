@@ -25,6 +25,8 @@ import time
 import functools
 import eventlet
 
+eventlet.monkey_patch()
+
 from vendmachine.items import Items
 from vendmachine.users import Users
 
@@ -115,7 +117,7 @@ class Server():
 
 		self.login_manager.init_app(self.app)
 		from flask_socketio import SocketIO
-		self.socketio = SocketIO(self.app, logger=False, engineio_logger=True)
+		self.socketio = SocketIO(self.app, logger=False, engineio_logger=True, async_mode='eventlet')
 
 		import vendmachine.routes
 		from vendmachine.api import api
@@ -163,7 +165,7 @@ class Server():
 
 	def status_update(self):
 		print("status {}, credit={}".format(str(self._status), self._credit))
-		self.socketio.emit('status', self.status_data())
+		self.socketio.emit('status', self.status_data(), namespace="/")
 
 	def vend(self, channel):
 		if channel not in self.items.channels():
@@ -176,7 +178,7 @@ class Server():
 			raise ValueError("Insufficient Credit")
 		self._credit -= price
 		self.status_change(Status.Vending)
-		eventlet.spawn(self._vendTask, motor, price) #allows websocket to continue
+		self.socketio.start_background_task(self._vendTask, motor, price) #allows websocket to continue
 
 	def _vendTask(self, motor, price):
 		try:
@@ -208,7 +210,7 @@ class Server():
 		except (ModuleNotFoundError, RuntimeError):
 			print("Running simulated Machine")
 			self.machine = None
-		self.socketio.run(self.app, debug=True, use_reloader=False, host=self._host, port=self._port)
+		self.socketio.run(self.app, debug=False, use_reloader=False, host=self._host, port=self._port)
 
 	def stop(self):
 		if self.users is not None:

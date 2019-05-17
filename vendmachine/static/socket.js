@@ -26,6 +26,9 @@ socket.on('status', function(data) {
   $('.status').html(data.status.text);
   $('.credit').html(data.status.creditText);
 });
+/*window.setInterval(function(){
+  socket.emit('status', {}); //if you want something done right...
+}, 1000);*/
 
 socket.on('vendError', function(data) {
   if (data.error === undefined) {
@@ -35,15 +38,11 @@ socket.on('vendError', function(data) {
   console.log("Error code: " + data.error.code);
   error(data.error.msg);
 });
-
 socket.on('vendSuccess', function(data) {
   console.log("socket(vendSuccess): " + data);
   success("Vend Completed")
 });
 
-socket.on('heartbeat', function(msg) {
-  console.log("Heartbeat: " + msg);
-});
 socket.on('refresh', function(msg) {
   window.location.reload(true);
 });

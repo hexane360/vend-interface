@@ -1,15 +1,18 @@
 [Unit]
 Description=Vending machine server
-After=network.target
+After=network-pre.target
+Before=network.target
 
 [Service]
 Type=forking
 User=vend
 WorkingDirectory=/home/vend/vend-interface/
-ExecStart=/home/vend/vend-interface/venv/bin/python3 -m vendmachine --fork > /home/vend/vend-interface/server.log 2>&1
+ExecStart=/home/vend/vend-interface/venv/bin/python3 -m vendmachine --fork
+TimeoutStartSec=60
 Restart=on-abnormal
 RestartSec=10s
 
+TimeoutStopSec=60
 KillSignal=SIGTERM
 
 [Install]

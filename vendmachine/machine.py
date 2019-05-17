@@ -51,6 +51,39 @@ class Monitor():
 	def register(self, callback):
 		self._callbacks.append(callback)
 
+#class to poll a GPIO pin and return debounced events
+#returns events at time of *next* edge
+class Poll():
+	def __init__(self, pin, debounce=20, **kwargs):
+		self._pin = pin
+		self.debounce = 20
+		GPIO.setup(pin, GPIO.IN, **kwargs)
+		self._t = time.monotonic_ns()
+		self._state = GPIO.input(pin)
+		self._callbacks = []
+		GPIO.add_event_detect(pin, GPIO.BOTH)
+	def run(self):
+		while True:
+			self._poll()
+			eventlet.sleep(0.01) #10 ms
+	def _poll(self):
+		if not GPIO.event_detected(self._pin):
+			return
+		state = GPIO.input(self._pin)
+		if state == self._state:
+			return
+		self._state = state
+		t = time.monotonic_ns()
+		delta = t - self._t
+		self._t = t
+		#print("Got pulse event: {}".format(state))
+		#print("Time difference: {} ms".format(delta/1000000))
+		if (delta > self.debounce*1000000):
+			for cb in self._callbacks:
+				cb(not self._state) #return pulse that just ended
+	def register(self, callback):
+		self._callbacks.append(callback)
+
 class Machine():
 	def __init__(self):
 		self.drivers = Drivers()
@@ -58,7 +91,9 @@ class Machine():
 		GPIO.setup(acceptingPin, GPIO.OUT, initial=GPIO.HIGH)
 		GPIO.setup(oosPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 		self._oos = GPIO.input(oosPin) == True
-		self._pulse = Monitor(pulsePin, pull_up_down = GPIO.PUD_UP)
+		#self._pulse = Monitor(pulsePin, pull_up_down = GPIO.PUD_UP)
+		self._pulse = Poll(pulsePin, pull_up_down = GPIO.PUD_UP)
+		eventlet.spawn_n(self._pulse.run)
 
 		GPIO.setup(irPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 		GPIO.add_event_detect(irPin, GPIO.FALLING)# callback=self._irEvent)
@@ -109,9 +144,10 @@ class Machine():
 
 	def stop(self):
 		self.drivers.stop()
-		#GPIO.remove_event_detect(oosPin)
+		del self.drivers
+		GPIO.remove_event_detect(oosPin)
 		#GPIO.remove_event_detect(pulsePin)
-		#GPIO.remove_event_detect(irPin)
+		GPIO.remove_event_detect(irPin)
 		GPIO.output(acceptingPin, GPIO.LOW) #disable acceptor
 		#GPIO.cleanup()
 
@@ -148,7 +184,7 @@ class Drivers():
 		GPIO.output(stepPin, True)
 	def __del__(self):
 		GPIO.output(resetPin, False) #deactivate drivers
-		self._setSpeed(0) #stop PWM
+		self._pwm.stop()
 	def reset(self):
 		GPIO.output(resetPin, False)
 		time.sleep(50.0/1000000.0) #50 us
